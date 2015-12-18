@@ -81,7 +81,17 @@ enum {
 };
 
 struct percpu_ref {
-	atomic_long_t		count;
+	/*
+	 * This is a temporary solution.
+	 *
+	 * The count should technically not be allowed to wrap, but due to the
+	 * way the counter is used (in lib/percpu-refcount.c) together with the
+	 * PERCPU_COUNT_BIAS it needs to wrap. This leaves the counter open
+	 * to over/underflows. A non-wrapping atomic, together with a bias
+	 * decrease would reduce the safe range in half, and also offer only
+	 * partial protection.
+	 */
+	atomic_long_wrap_t	count;
 	/*
 	 * The low bit of the pointer indicates whether the ref is in percpu
 	 * mode; if set, then get/put will manipulate the atomic_t.
@@ -174,7 +184,7 @@ static inline void percpu_ref_get_many(struct percpu_ref *ref, unsigned long nr)
 	if (__ref_is_percpu(ref, &percpu_count))
 		this_cpu_add(*percpu_count, nr);
 	else
-		atomic_long_add(nr, &ref->count);
+		atomic_long_add_wrap(nr, &ref->count);
 
 	rcu_read_unlock_sched();
 }
@@ -272,7 +282,7 @@ static inline void percpu_ref_put_many(struct percpu_ref *ref, unsigned long nr)
 
 	if (__ref_is_percpu(ref, &percpu_count))
 		this_cpu_sub(*percpu_count, nr);
-	else if (unlikely(atomic_long_sub_and_test(nr, &ref->count)))
+	else if (unlikely(atomic_long_sub_and_test_wrap(nr, &ref->count)))
 		ref->release(ref);
 
 	rcu_read_unlock_sched();
@@ -320,7 +330,7 @@ static inline bool percpu_ref_is_zero(struct percpu_ref *ref)
 
 	if (__ref_is_percpu(ref, &percpu_count))
 		return false;
-	return !atomic_long_read(&ref->count);
+	return !atomic_long_read_wrap(&ref->count);
 }
 
 #endif
