@@ -80,7 +80,7 @@ int percpu_ref_init(struct percpu_ref *ref, percpu_ref_func_t *release,
 	else
 		start_count++;
 
-	atomic_long_set(&ref->count, start_count);
+	atomic_long_set_wrap(&ref->count, start_count);
 
 	ref->release = release;
 	ref->confirm_switch = NULL;
@@ -134,7 +134,7 @@ static void percpu_ref_switch_to_atomic_rcu(struct rcu_head *rcu)
 		count += *per_cpu_ptr(percpu_count, cpu);
 
 	pr_debug("global %ld percpu %ld",
-		 atomic_long_read(&ref->count), (long)count);
+		 atomic_long_read_wrap(&ref->count), (long)count);
 
 	/*
 	 * It's crucial that we sum the percpu counters _before_ adding the sum
@@ -148,11 +148,11 @@ static void percpu_ref_switch_to_atomic_rcu(struct rcu_head *rcu)
 	 * reaching 0 before we add the percpu counts. But doing it at the same
 	 * time is equivalent and saves us atomic operations:
 	 */
-	atomic_long_add((long)count - PERCPU_COUNT_BIAS, &ref->count);
+	atomic_long_add_wrap((long)count - PERCPU_COUNT_BIAS, &ref->count);
 
-	WARN_ONCE(atomic_long_read(&ref->count) <= 0,
+	WARN_ONCE(atomic_long_read_wrap(&ref->count) <= 0,
 		  "percpu ref (%pf) <= 0 (%ld) after switching to atomic",
-		  ref->release, atomic_long_read(&ref->count));
+		  ref->release, atomic_long_read_wrap(&ref->count));
 
 	/* @ref is viewed as dead on all CPUs, send out switch confirmation */
 	percpu_ref_call_confirm_rcu(rcu);
@@ -194,7 +194,7 @@ static void __percpu_ref_switch_to_percpu(struct percpu_ref *ref)
 	if (!(ref->percpu_count_ptr & __PERCPU_REF_ATOMIC))
 		return;
 
-	atomic_long_add(PERCPU_COUNT_BIAS, &ref->count);
+	atomic_long_add_wrap(PERCPU_COUNT_BIAS, &ref->count);
 
 	/*
 	 * Restore per-cpu operation.  smp_store_release() is paired with
