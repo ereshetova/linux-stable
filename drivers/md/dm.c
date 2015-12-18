@@ -1484,8 +1484,8 @@ static struct mapped_device *alloc_dev(int minor)
 	spin_lock_init(&md->deferred_lock);
 	atomic_set(&md->holders, 1);
 	atomic_set(&md->open_count, 0);
-	atomic_set(&md->event_nr, 0);
-	atomic_set(&md->uevent_seq, 0);
+	atomic_set_wrap(&md->event_nr, 0);
+	atomic_set_wrap(&md->uevent_seq, 0);
 	INIT_LIST_HEAD(&md->uevent_list);
 	INIT_LIST_HEAD(&md->table_devices);
 	spin_lock_init(&md->uevent_lock);
@@ -1624,7 +1624,7 @@ static void event_callback(void *context)
 
 	dm_send_uevents(&uevents, &disk_to_dev(md->disk)->kobj);
 
-	atomic_inc(&md->event_nr);
+	atomic_inc_wrap(&md->event_nr);
 	wake_up(&md->eventq);
 }
 
@@ -2412,18 +2412,18 @@ int dm_kobject_uevent(struct mapped_device *md, enum kobject_action action,
 
 uint32_t dm_next_uevent_seq(struct mapped_device *md)
 {
-	return atomic_add_return(1, &md->uevent_seq);
+	return atomic_add_return_wrap(1, &md->uevent_seq);
 }
 
 uint32_t dm_get_event_nr(struct mapped_device *md)
 {
-	return atomic_read(&md->event_nr);
+	return atomic_read_wrap(&md->event_nr);
 }
 
 int dm_wait_event(struct mapped_device *md, int event_nr)
 {
 	return wait_event_interruptible(md->eventq,
-			(event_nr != atomic_read(&md->event_nr)));
+			(event_nr != atomic_read_wrap(&md->event_nr)));
 }
 
 void dm_uevent_add(struct mapped_device *md, struct list_head *elist)
