@@ -34,7 +34,7 @@ static DEFINE_MUTEX(kernfs_open_file_mutex);
 
 struct kernfs_open_node {
 	atomic_t		refcnt;
-	atomic_t		event;
+	atomic_wrap_t		event;
 	wait_queue_head_t	poll;
 	struct list_head	files; /* goes through kernfs_open_file.list */
 };
@@ -163,7 +163,7 @@ static int kernfs_seq_show(struct seq_file *sf, void *v)
 {
 	struct kernfs_open_file *of = sf->private;
 
-	of->event = atomic_read(&of->kn->attr.open->event);
+	of->event = atomic_read_wrap(&of->kn->attr.open->event);
 
 	return of->kn->attr.ops->seq_show(sf, v);
 }
@@ -208,7 +208,7 @@ static ssize_t kernfs_file_direct_read(struct kernfs_open_file *of,
 		goto out_free;
 	}
 
-	of->event = atomic_read(&of->kn->attr.open->event);
+	of->event = atomic_read_wrap(&of->kn->attr.open->event);
 	ops = kernfs_ops(of->kn);
 	if (ops->read)
 		len = ops->read(of, buf, len, *ppos);
@@ -575,7 +575,7 @@ static int kernfs_get_open_node(struct kernfs_node *kn,
 		return -ENOMEM;
 
 	atomic_set(&new_on->refcnt, 0);
-	atomic_set(&new_on->event, 1);
+	atomic_set_wrap(&new_on->event, 1);
 	init_waitqueue_head(&new_on->poll);
 	INIT_LIST_HEAD(&new_on->files);
 	goto retry;
@@ -799,7 +799,7 @@ static unsigned int kernfs_fop_poll(struct file *filp, poll_table *wait)
 
 	kernfs_put_active(kn);
 
-	if (of->event != atomic_read(&on->event))
+	if (of->event != atomic_read_wrap(&on->event))
 		goto trigger;
 
 	return DEFAULT_POLLMASK;
@@ -830,7 +830,7 @@ repeat:
 
 	on = kn->attr.open;
 	if (on) {
-		atomic_inc(&on->event);
+		atomic_inc_wrap(&on->event);
 		wake_up_interruptible(&on->poll);
 	}
 
