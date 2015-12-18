@@ -1826,7 +1826,7 @@ static void end_sync_read(struct bio *bio)
 		/* The write handler will notice the lack of
 		 * R10BIO_Uptodate and record any errors etc
 		 */
-		atomic_add(r10_bio->sectors,
+		atomic_add_wrap(r10_bio->sectors,
 			   &conf->mirrors[d].rdev->corrected_errors);
 
 	/* for reconstruct, we always reschedule after a read.
@@ -1975,7 +1975,8 @@ static void sync_request_write(struct mddev *mddev, struct r10bio *r10_bio)
 			}
 			if (j == vcnt)
 				continue;
-			atomic64_add(r10_bio->sectors, &mddev->resync_mismatches);
+			atomic64_add_wrap(r10_bio->sectors,
+					  &mddev->resync_mismatches);
 			if (test_bit(MD_RECOVERY_CHECK, &mddev->recovery))
 				/* Don't fix anything. */
 				continue;
@@ -2174,7 +2175,7 @@ static void check_decay_read_errors(struct mddev *mddev, struct md_rdev *rdev)
 {
 	long cur_time_mon;
 	unsigned long hours_since_last;
-	unsigned int read_errors = atomic_read(&rdev->read_errors);
+	unsigned int read_errors = atomic_read_wrap(&rdev->read_errors);
 
 	cur_time_mon = ktime_get_seconds();
 
@@ -2195,9 +2196,10 @@ static void check_decay_read_errors(struct mddev *mddev, struct md_rdev *rdev)
 	 * overflowing the shift of read_errors by hours_since_last.
 	 */
 	if (hours_since_last >= 8 * sizeof(read_errors))
-		atomic_set(&rdev->read_errors, 0);
+		atomic_set_wrap(&rdev->read_errors, 0);
 	else
-		atomic_set(&rdev->read_errors, read_errors >> hours_since_last);
+		atomic_set_wrap(&rdev->read_errors,
+				read_errors >> hours_since_last);
 }
 
 static int r10_sync_page_io(struct md_rdev *rdev, sector_t sector,
@@ -2251,8 +2253,8 @@ static void fix_read_error(struct r10conf *conf, struct mddev *mddev, struct r10
 		return;
 
 	check_decay_read_errors(mddev, rdev);
-	atomic_inc(&rdev->read_errors);
-	if (atomic_read(&rdev->read_errors) > max_read_errors) {
+	atomic_inc_wrap(&rdev->read_errors);
+	if (atomic_read_wrap(&rdev->read_errors) > max_read_errors) {
 		char b[BDEVNAME_SIZE];
 		bdevname(rdev->bdev, b);
 
@@ -2260,7 +2262,7 @@ static void fix_read_error(struct r10conf *conf, struct mddev *mddev, struct r10
 		       "md/raid10:%s: %s: Raid device exceeded "
 		       "read_error threshold [cur %d:max %d]\n",
 		       mdname(mddev), b,
-		       atomic_read(&rdev->read_errors), max_read_errors);
+		       atomic_read_wrap(&rdev->read_errors), max_read_errors);
 		printk(KERN_NOTICE
 		       "md/raid10:%s: %s: Failing raid device\n",
 		       mdname(mddev), b);
@@ -2417,7 +2419,7 @@ static void fix_read_error(struct r10conf *conf, struct mddev *mddev, struct r10
 					       sect +
 					       choose_data_offset(r10_bio, rdev)),
 				       bdevname(rdev->bdev, b));
-				atomic_add(s, &rdev->corrected_errors);
+				atomic_add_wrap(s, &rdev->corrected_errors);
 			}
 
 			rdev_dec_pending(rdev, mddev);
