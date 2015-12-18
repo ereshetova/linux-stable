@@ -528,7 +528,7 @@ struct xfrm_policy {
 	struct timer_list	timer;
 
 	struct flow_cache_object flo;
-	atomic_t		genid;
+	atomic_wrap_t		genid;
 	u32			priority;
 	u32			index;
 	struct xfrm_mark	mark;

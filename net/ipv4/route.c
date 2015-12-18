@@ -463,7 +463,7 @@ static struct neighbour *ipv4_neigh_lookup(const struct dst_entry *dst,
 
 #define IP_IDENTS_SZ 2048u
 
-static atomic_t *ip_idents __read_mostly;
+static atomic_wrap_t *ip_idents __read_mostly;
 static u32 *ip_tstamps __read_mostly;
 
 /* In order to protect privacy, we add a perturbation to identifiers
@@ -473,7 +473,7 @@ static u32 *ip_tstamps __read_mostly;
 u32 ip_idents_reserve(u32 hash, int segs)
 {
 	u32 *p_tstamp = ip_tstamps + hash % IP_IDENTS_SZ;
-	atomic_t *p_id = ip_idents + hash % IP_IDENTS_SZ;
+	atomic_wrap_t *p_id = ip_idents + hash % IP_IDENTS_SZ;
 	u32 old = ACCESS_ONCE(*p_tstamp);
 	u32 now = (u32)jiffies;
 	u32 new, delta = 0;
@@ -483,9 +483,9 @@ u32 ip_idents_reserve(u32 hash, int segs)
 
 	/* Do not use atomic_add_return() as it makes UBSAN unhappy */
 	do {
-		old = (u32)atomic_read(p_id);
+		old = (u32)atomic_read_wrap(p_id);
 		new = old + delta + segs;
-	} while (atomic_cmpxchg(p_id, old, new) != old);
+	} while (atomic_cmpxchg_wrap(p_id, old, new) != old);
 
 	return new - segs;
 }
@@ -2824,8 +2824,8 @@ static __net_initdata struct pernet_operations sysctl_route_ops = {
 
 static __net_init int rt_genid_init(struct net *net)
 {
-	atomic_set(&net->ipv4.rt_genid, 0);
-	atomic_set(&net->fnhe_genid, 0);
+	atomic_set_wrap(&net->ipv4.rt_genid, 0);
+	atomic_set_wrap(&net->fnhe_genid, 0);
 	get_random_bytes(&net->ipv4.dev_addr_genid,
 			 sizeof(net->ipv4.dev_addr_genid));
 	return 0;

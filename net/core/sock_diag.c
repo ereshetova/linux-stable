@@ -22,12 +22,12 @@ static struct workqueue_struct *broadcast_wq;
 static u64 sock_gen_cookie(struct sock *sk)
 {
 	while (1) {
-		u64 res = atomic64_read(&sk->sk_cookie);
+		u64 res = atomic64_read_wrap(&sk->sk_cookie);
 
 		if (res)
 			return res;
-		res = atomic64_inc_return(&sock_net(sk)->cookie_gen);
-		atomic64_cmpxchg(&sk->sk_cookie, 0, res);
+		res = atomic64_inc_return_wrap(&sock_net(sk)->cookie_gen);
+		atomic64_cmpxchg_wrap(&sk->sk_cookie, 0, res);
 	}
 }
 
@@ -67,7 +67,7 @@ int sock_diag_put_meminfo(struct sock *sk, struct sk_buff *skb, int attrtype)
 	mem[SK_MEMINFO_WMEM_QUEUED] = sk->sk_wmem_queued;
 	mem[SK_MEMINFO_OPTMEM] = atomic_read(&sk->sk_omem_alloc);
 	mem[SK_MEMINFO_BACKLOG] = sk->sk_backlog.len;
-	mem[SK_MEMINFO_DROPS] = atomic_read(&sk->sk_drops);
+	mem[SK_MEMINFO_DROPS] = atomic_read_wrap(&sk->sk_drops);
 
 	return nla_put(skb, attrtype, sizeof(mem), &mem);
 }

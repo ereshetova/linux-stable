@@ -379,7 +379,7 @@ struct rxrpc_connection {
 	u32			local_abort;	/* local abort code */
 	u32			remote_abort;	/* remote abort code */
 	int			debug_id;	/* debug ID for printks */
-	atomic_t		serial;		/* packet serial number counter */
+	atomic_wrap_t		serial;		/* packet serial number counter */
 	unsigned int		hi_serial;	/* highest serial number received */
 	u32			security_nonce;	/* response re-use preventer */
 	u8			size_align;	/* data size alignment (for security) */
@@ -794,7 +794,7 @@ extern const char rxrpc_ack_names[RXRPC_ACK__INVALID + 1][4];
  */
 extern atomic_t rxrpc_n_tx_skbs, rxrpc_n_rx_skbs;
 extern u32 rxrpc_epoch;
-extern atomic_t rxrpc_debug_id;
+extern atomic_wrap_t rxrpc_debug_id;
 extern struct workqueue_struct *rxrpc_workqueue;
 
 /*
