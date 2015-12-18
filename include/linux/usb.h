@@ -599,7 +599,7 @@ struct usb_device {
 	int maxchild;
 
 	u32 quirks;
-	atomic_t urbnum;
+	atomic_wrap_t urbnum;
 
 	unsigned long active_duration;
 
