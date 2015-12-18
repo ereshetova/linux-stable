@@ -673,7 +673,7 @@ static int inet6_netconf_dump_devconf(struct sk_buff *skb,
 		idx = 0;
 		head = &net->dev_index_head[h];
 		rcu_read_lock();
-		cb->seq = atomic_read(&net->ipv6.dev_addr_genid) ^
+		cb->seq = atomic_read_wrap(&net->ipv6.dev_addr_genid) ^
 			  net->dev_base_seq;
 		hlist_for_each_entry_rcu(dev, head, index_hlist) {
 			if (idx < s_idx)
@@ -4773,7 +4773,8 @@ static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
 	s_ip_idx = ip_idx = cb->args[2];
 
 	rcu_read_lock();
-	cb->seq = atomic_read(&net->ipv6.dev_addr_genid) ^ net->dev_base_seq;
+	cb->seq = atomic_read_wrap(
+			&net->ipv6.dev_addr_genid) ^ net->dev_base_seq;
 	for (h = s_h; h < NETDEV_HASHENTRIES; h++, s_idx = 0) {
 		idx = 0;
 		head = &net->dev_index_head[h];
@@ -5457,7 +5458,7 @@ static void __ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)
 		rt_genid_bump_ipv6(net);
 		break;
 	}
-	atomic_inc(&net->ipv6.dev_addr_genid);
+	atomic_inc_wrap(&net->ipv6.dev_addr_genid);
 }
 
 static void ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)

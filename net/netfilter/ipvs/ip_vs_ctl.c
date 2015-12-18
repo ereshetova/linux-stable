@@ -841,7 +841,7 @@ __ip_vs_update_dest(struct ip_vs_service *svc, struct ip_vs_dest *dest,
 		 */
 		ip_vs_rs_hash(ipvs, dest);
 	}
-	atomic_set(&dest->conn_flags, conn_flags);
+	atomic_set_wrap(&dest->conn_flags, conn_flags);
 
 	/* bind the service */
 	old_svc = rcu_dereference_protected(dest->svc, 1);
@@ -2083,7 +2083,8 @@ static int ip_vs_info_seq_show(struct seq_file *seq, void *v)
 					   "      %-7s %-6d %-10d %-10d\n",
 					   &dest->addr.in6,
 					   ntohs(dest->port),
-					   ip_vs_fwd_name(atomic_read(&dest->conn_flags)),
+					   ip_vs_fwd_name(atomic_read_wrap(
+							   &dest->conn_flags)),
 					   atomic_read(&dest->weight),
 					   atomic_read(&dest->activeconns),
 					   atomic_read(&dest->inactconns));
@@ -2094,7 +2095,8 @@ static int ip_vs_info_seq_show(struct seq_file *seq, void *v)
 					   "%-7s %-6d %-10d %-10d\n",
 					   ntohl(dest->addr.ip),
 					   ntohs(dest->port),
-					   ip_vs_fwd_name(atomic_read(&dest->conn_flags)),
+					   ip_vs_fwd_name(atomic_read_wrap(
+							   &dest->conn_flags)),
 					   atomic_read(&dest->weight),
 					   atomic_read(&dest->activeconns),
 					   atomic_read(&dest->inactconns));
@@ -2603,7 +2605,7 @@ __ip_vs_get_dest_entries(struct netns_ipvs *ipvs, const struct ip_vs_get_dests *
 
 			entry.addr = dest->addr.ip;
 			entry.port = dest->port;
-			entry.conn_flags = atomic_read(&dest->conn_flags);
+			entry.conn_flags = atomic_read_wrap(&dest->conn_flags);
 			entry.weight = atomic_read(&dest->weight);
 			entry.u_threshold = dest->u_threshold;
 			entry.l_threshold = dest->l_threshold;
@@ -3196,7 +3198,7 @@ static int ip_vs_genl_fill_dest(struct sk_buff *skb, struct ip_vs_dest *dest)
 	if (nla_put(skb, IPVS_DEST_ATTR_ADDR, sizeof(dest->addr), &dest->addr) ||
 	    nla_put_be16(skb, IPVS_DEST_ATTR_PORT, dest->port) ||
 	    nla_put_u32(skb, IPVS_DEST_ATTR_FWD_METHOD,
-			(atomic_read(&dest->conn_flags) &
+			(atomic_read_wrap(&dest->conn_flags) &
 			 IP_VS_CONN_F_FWD_MASK)) ||
 	    nla_put_u32(skb, IPVS_DEST_ATTR_WEIGHT,
 			atomic_read(&dest->weight)) ||

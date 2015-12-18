@@ -188,7 +188,7 @@ struct sock_common {
 	struct in6_addr		skc_v6_rcv_saddr;
 #endif
 
-	atomic64_t		skc_cookie;
+	atomic64_wrap_t		skc_cookie;
 
 	/* following fields are padding to force
 	 * offset(struct sock, sk_refcnt) == 128 on 64bit arches
@@ -364,7 +364,7 @@ struct sock {
 	unsigned int		sk_napi_id;
 	unsigned int		sk_ll_usec;
 #endif
-	atomic_t		sk_drops;
+	atomic_wrap_t		sk_drops;
 	int			sk_rcvbuf;
 
 	struct sk_filter __rcu	*sk_filter;
@@ -2106,14 +2106,14 @@ struct sock_skb_cb {
 static inline void
 sock_skb_set_dropcount(const struct sock *sk, struct sk_buff *skb)
 {
-	SOCK_SKB_CB(skb)->dropcount = atomic_read(&sk->sk_drops);
+	SOCK_SKB_CB(skb)->dropcount = atomic_read_wrap(&sk->sk_drops);
 }
 
 static inline void sk_drops_add(struct sock *sk, const struct sk_buff *skb)
 {
 	int segs = max_t(u16, 1, skb_shinfo(skb)->gso_segs);
 
-	atomic_add(segs, &sk->sk_drops);
+	atomic_add_wrap(segs, &sk->sk_drops);
 }
 
 void __sock_recv_timestamp(struct msghdr *msg, struct sock *sk,

@@ -62,15 +62,15 @@ unsigned int svcrdma_max_req_size = RPCRDMA_MAX_REQ_SIZE;
 static unsigned int min_max_inline = 4096;
 static unsigned int max_max_inline = 65536;
 
-atomic_t rdma_stat_recv;
-atomic_t rdma_stat_read;
-atomic_t rdma_stat_write;
-atomic_t rdma_stat_sq_starve;
-atomic_t rdma_stat_rq_starve;
-atomic_t rdma_stat_rq_poll;
-atomic_t rdma_stat_rq_prod;
-atomic_t rdma_stat_sq_poll;
-atomic_t rdma_stat_sq_prod;
+atomic_wrap_t rdma_stat_recv;
+atomic_wrap_t rdma_stat_read;
+atomic_wrap_t rdma_stat_write;
+atomic_wrap_t rdma_stat_sq_starve;
+atomic_wrap_t rdma_stat_rq_starve;
+atomic_wrap_t rdma_stat_rq_poll;
+atomic_wrap_t rdma_stat_rq_prod;
+atomic_wrap_t rdma_stat_sq_poll;
+atomic_wrap_t rdma_stat_sq_prod;
 
 struct workqueue_struct *svc_rdma_wq;
 
@@ -147,63 +147,63 @@ static struct ctl_table svcrdma_parm_table[] = {
 	{
 		.procname	= "rdma_stat_read",
 		.data		= &rdma_stat_read,
-		.maxlen		= sizeof(atomic_t),
+		.maxlen		= sizeof(atomic_wrap_t),
 		.mode		= 0644,
 		.proc_handler	= read_reset_stat,
 	},
 	{
 		.procname	= "rdma_stat_recv",
 		.data		= &rdma_stat_recv,
-		.maxlen		= sizeof(atomic_t),
+		.maxlen		= sizeof(atomic_wrap_t),
 		.mode		= 0644,
 		.proc_handler	= read_reset_stat,
 	},
 	{
 		.procname	= "rdma_stat_write",
 		.data		= &rdma_stat_write,
-		.maxlen		= sizeof(atomic_t),
+		.maxlen		= sizeof(atomic_wrap_t),
 		.mode		= 0644,
 		.proc_handler	= read_reset_stat,
 	},
 	{
 		.procname	= "rdma_stat_sq_starve",
 		.data		= &rdma_stat_sq_starve,
-		.maxlen		= sizeof(atomic_t),
+		.maxlen		= sizeof(atomic_wrap_t),
 		.mode		= 0644,
 		.proc_handler	= read_reset_stat,
 	},
 	{
 		.procname	= "rdma_stat_rq_starve",
 		.data		= &rdma_stat_rq_starve,
-		.maxlen		= sizeof(atomic_t),
+		.maxlen		= sizeof(atomic_wrap_t),
 		.mode		= 0644,
 		.proc_handler	= read_reset_stat,
 	},
 	{
 		.procname	= "rdma_stat_rq_poll",
 		.data		= &rdma_stat_rq_poll,
-		.maxlen		= sizeof(atomic_t),
+		.maxlen		= sizeof(atomic_wrap_t),
 		.mode		= 0644,
 		.proc_handler	= read_reset_stat,
 	},
 	{
 		.procname	= "rdma_stat_rq_prod",
 		.data		= &rdma_stat_rq_prod,
-		.maxlen		= sizeof(atomic_t),
+		.maxlen		= sizeof(atomic_wrap_t),
 		.mode		= 0644,
 		.proc_handler	= read_reset_stat,
 	},
 	{
 		.procname	= "rdma_stat_sq_poll",
 		.data		= &rdma_stat_sq_poll,
-		.maxlen		= sizeof(atomic_t),
+		.maxlen		= sizeof(atomic_wrap_t),
 		.mode		= 0644,
 		.proc_handler	= read_reset_stat,
 	},
 	{
 		.procname	= "rdma_stat_sq_prod",
 		.data		= &rdma_stat_sq_prod,
-		.maxlen		= sizeof(atomic_t),
+		.maxlen		= sizeof(atomic_wrap_t),
 		.mode		= 0644,
 		.proc_handler	= read_reset_stat,
 	},
