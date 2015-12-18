@@ -46,6 +46,7 @@
 #include <linux/filter.h>
 #include <linux/namei.h>
 #include <linux/parser.h>
+#include <linux/atomic.h>
 
 #include "internal.h"
 
@@ -545,7 +546,7 @@ void perf_sample_event_took(u64 sample_len_ns)
 	}
 }
 
-static atomic64_t perf_event_id;
+static atomic64_wrap_t perf_event_id;
 
 static void cpu_ctx_sched_out(struct perf_cpu_context *cpuctx,
 			      enum event_type_t event_type);
@@ -4230,9 +4231,9 @@ u64 perf_event_read_value(struct perf_event *event, u64 *enabled, u64 *running)
 	total += perf_event_count(event);
 
 	*enabled += event->total_time_enabled +
-			atomic64_read(&event->child_total_time_enabled);
+			atomic64_read_wrap(&event->child_total_time_enabled);
 	*running += event->total_time_running +
-			atomic64_read(&event->child_total_time_running);
+			atomic64_read_wrap(&event->child_total_time_running);
 
 	list_for_each_entry(child, &event->child_list, child_list) {
 		(void)perf_event_read(child, false);
@@ -4264,12 +4265,12 @@ static int __perf_read_group_add(struct perf_event *leader,
 	 */
 	if (read_format & PERF_FORMAT_TOTAL_TIME_ENABLED) {
 		values[n++] += leader->total_time_enabled +
-			atomic64_read(&leader->child_total_time_enabled);
+			atomic64_read_wrap(&leader->child_total_time_enabled);
 	}
 
 	if (read_format & PERF_FORMAT_TOTAL_TIME_RUNNING) {
 		values[n++] += leader->total_time_running +
-			atomic64_read(&leader->child_total_time_running);
+			atomic64_read_wrap(&leader->child_total_time_running);
 	}
 
 	/*
@@ -4792,10 +4793,10 @@ void perf_event_update_userpage(struct perf_event *event)
 		userpg->offset -= local64_read(&event->hw.prev_count);
 
 	userpg->time_enabled = enabled +
-			atomic64_read(&event->child_total_time_enabled);
+			atomic64_read_wrap(&event->child_total_time_enabled);
 
 	userpg->time_running = running +
-			atomic64_read(&event->child_total_time_running);
+			atomic64_read_wrap(&event->child_total_time_running);
 
 	arch_perf_update_userpage(event, userpg, now);
 
@@ -5589,11 +5590,11 @@ static void perf_output_read_one(struct perf_output_handle *handle,
 	values[n++] = perf_event_count(event);
 	if (read_format & PERF_FORMAT_TOTAL_TIME_ENABLED) {
 		values[n++] = enabled +
-			atomic64_read(&event->child_total_time_enabled);
+			atomic64_read_wrap(&event->child_total_time_enabled);
 	}
 	if (read_format & PERF_FORMAT_TOTAL_TIME_RUNNING) {
 		values[n++] = running +
-			atomic64_read(&event->child_total_time_running);
+			atomic64_read_wrap(&event->child_total_time_running);
 	}
 	if (read_format & PERF_FORMAT_ID)
 		values[n++] = primary_event_id(event);
@@ -9108,7 +9109,7 @@ perf_event_alloc(struct perf_event_attr *attr, int cpu,
 	event->parent		= parent_event;
 
 	event->ns		= get_pid_ns(task_active_pid_ns(current));
-	event->id		= atomic64_inc_return(&perf_event_id);
+	event->id		= atomic64_inc_return_wrap(&perf_event_id);
 
 	event->state		= PERF_EVENT_STATE_INACTIVE;
 
@@ -10032,10 +10033,10 @@ static void sync_child_event(struct perf_event *child_event,
 	/*
 	 * Add back the child's count to the parent's count:
 	 */
-	atomic64_add(child_val, &parent_event->child_count);
-	atomic64_add(child_event->total_time_enabled,
+	atomic64_add_wrap(child_val, &parent_event->child_count);
+	atomic64_add_wrap(child_event->total_time_enabled,
 		     &parent_event->child_total_time_enabled);
-	atomic64_add(child_event->total_time_running,
+	atomic64_add_wrap(child_event->total_time_running,
 		     &parent_event->child_total_time_running);
 }
 
