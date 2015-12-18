@@ -544,7 +544,7 @@ void do_coredump(const siginfo_t *siginfo)
 	/* require nonrelative corefile path and be extra careful */
 	bool need_suid_safe = false;
 	bool core_dumped = false;
-	static atomic_t core_dump_count = ATOMIC_INIT(0);
+	static atomic_wrap_t core_dump_count = ATOMIC_INIT(0);
 	struct coredump_params cprm = {
 		.siginfo = siginfo,
 		.regs = signal_pt_regs(),
@@ -623,7 +623,7 @@ void do_coredump(const siginfo_t *siginfo)
 		}
 		cprm.limit = RLIM_INFINITY;
 
-		dump_count = atomic_inc_return(&core_dump_count);
+		dump_count = atomic_inc_return_wrap(&core_dump_count);
 		if (core_pipe_limit && (core_pipe_limit < dump_count)) {
 			printk(KERN_WARNING "Pid %d(%s) over core_pipe_limit\n",
 			       task_tgid_vnr(current), current->comm);
@@ -763,7 +763,7 @@ close_fail:
 		filp_close(cprm.file, NULL);
 fail_dropcount:
 	if (ispipe)
-		atomic_dec(&core_dump_count);
+		atomic_dec_wrap(&core_dump_count);
 fail_unlock:
 	kfree(cn.corename);
 	coredump_finish(mm, core_dumped);

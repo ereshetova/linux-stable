@@ -1255,8 +1255,8 @@ init_cifs(void)
 	atomic_set(&bufAllocCount, 0);
 	atomic_set(&smBufAllocCount, 0);
 #ifdef CONFIG_CIFS_STATS2
-	atomic_set(&totBufAllocCount, 0);
-	atomic_set(&totSmBufAllocCount, 0);
+	atomic_set_wrap(&totBufAllocCount, 0);
+	atomic_set_wrap(&totSmBufAllocCount, 0);
 #endif /* CONFIG_CIFS_STATS2 */
 
 	atomic_set(&midCount, 0);

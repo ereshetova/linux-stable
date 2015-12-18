@@ -176,8 +176,8 @@ static ssize_t cachefiles_daemon_read(struct file *file, char __user *_buffer,
 	cachefiles_has_space(cache, 0, 0);
 
 	/* summarise */
-	f_released = atomic_xchg(&cache->f_released, 0);
-	b_released = atomic_long_xchg(&cache->b_released, 0);
+	f_released = atomic_xchg_wrap(&cache->f_released, 0);
+	b_released = atomic_long_xchg_wrap(&cache->b_released, 0);
 	clear_bit(CACHEFILES_STATE_CHANGED, &cache->flags);
 
 	n = snprintf(buffer, sizeof(buffer),
