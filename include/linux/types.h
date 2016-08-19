@@ -175,6 +175,10 @@ typedef struct {
 	int counter;
 } atomic_t;
 
+typedef struct {
+	int counter;
+} atomic_wrap_t;
+
 #ifdef CONFIG_64BIT
 typedef struct {
 	long counter;

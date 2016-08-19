@@ -215,6 +215,13 @@ void __warn(const char *file, int line, void *caller, unsigned taint,
 # define WARN_ON_SMP(x)			({0;})
 #endif
 
+#ifdef CONFIG_HARDENED_ATOMIC
+void hardened_atomic_overflow(struct pt_regs *regs);
+#else
+static inline void hardened_atomic_overflow(struct pt_regs *regs){
+}
+#endif
+
 #endif /* __ASSEMBLY__ */
 
 #endif

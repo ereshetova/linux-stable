@@ -13,6 +13,8 @@ typedef struct
 	atomic_long_t a;
 } local_t;
 
+#include <asm-generic/local_wrap.h>
+
 #define LOCAL_INIT(i)	{ ATOMIC_LONG_INIT(i) }
 
 #define local_read(l)	atomic_long_read(&(l)->a)

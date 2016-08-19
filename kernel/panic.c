@@ -616,3 +616,14 @@ static int __init oops_setup(char *s)
 	return 0;
 }
 early_param("oops", oops_setup);
+
+#ifdef CONFIG_HARDENED_ATOMIC
+void hardened_atomic_overflow(struct pt_regs *regs)
+{
+	pr_emerg(KERN_EMERG "HARDENED_ATOMIC: overflow detected in: %s:%d, uid/euid: %u/%u\n",
+		current->comm, task_pid_nr(current),
+		from_kuid_munged(&init_user_ns, current_uid()),
+		from_kuid_munged(&init_user_ns, current_euid()));
+	BUG();
+}
+#endif

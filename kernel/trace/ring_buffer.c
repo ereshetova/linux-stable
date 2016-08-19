@@ -23,7 +23,8 @@
 #include <linux/list.h>
 #include <linux/cpu.h>
 
-#include <asm/local.h>
+#include <linux/local_wrap.h>
+
 
 static void update_pages_handler(struct work_struct *work);
 

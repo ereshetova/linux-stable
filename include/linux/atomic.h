@@ -40,28 +40,40 @@
  * variants
  */
 #ifndef __atomic_op_acquire
-#define __atomic_op_acquire(op, args...)				\
+#define __atomic_op_acquire(op, args...) __atomic_op_acquire_wrap(op, , args)
+#endif
+
+#ifndef __atomic_op_acquire_wrap
+#define __atomic_op_acquire_wrap(op, mo, args...)				\
 ({									\
-	typeof(op##_relaxed(args)) __ret  = op##_relaxed(args);		\
+	typeof(op##_relaxed##mo(args)) __ret  = op##_relaxed##mo(args);		\
 	smp_mb__after_atomic();						\
 	__ret;								\
 })
 #endif
 
 #ifndef __atomic_op_release
-#define __atomic_op_release(op, args...)				\
+#define __atomic_op_release(op, args...) __atomic_op_release_wrap(op, , args)
+#endif
+
+#ifndef __atomic_op_release_wrap
+#define __atomic_op_release_wrap(op, mo, args...)				\
 ({									\
 	smp_mb__before_atomic();					\
-	op##_relaxed(args);						\
+	op##_relaxed##mo(args);						\
 })
 #endif
 
 #ifndef __atomic_op_fence
-#define __atomic_op_fence(op, args...)					\
+#define __atomic_op_fence(op, args...) __atomic_op_fence_wrap(op, , args)
+#endif
+
+#ifndef __atomic_op_fence_wrap
+#define __atomic_op_fence_wrap(op, mo, args...)					\
 ({									\
-	typeof(op##_relaxed(args)) __ret;				\
+	typeof(op##_relaxed##mo(args)) __ret;				\
 	smp_mb__before_atomic();					\
-	__ret = op##_relaxed(args);					\
+	__ret = op##_relaxed##mo(args);					\
 	smp_mb__after_atomic();						\
 	__ret;								\
 })
@@ -91,6 +103,13 @@
 #endif
 #endif /* atomic_add_return_relaxed */
 
+#ifndef atomic_add_return_relaxed_wrap
+#define atomic_add_return_relaxed_wrap atomic_add_return_wrap
+#else
+#define atomic_add_return_wrap(...)					\
+	__atomic_op_fence_wrap(atomic_add_return, _wrap, __VA_ARGS__)
+#endif /* atomic_add_return_relaxed_wrap */
+
 /* atomic_inc_return_relaxed */
 #ifndef atomic_inc_return_relaxed
 #define  atomic_inc_return_relaxed	atomic_inc_return
@@ -114,6 +133,13 @@
 	__atomic_op_fence(atomic_inc_return, __VA_ARGS__)
 #endif
 #endif /* atomic_inc_return_relaxed */
+
+#ifndef atomic_inc_return_relaxed_wrap
+#define atomic_inc_return_relaxed_wrap atomic_in_return_wrap
+#else
+#define  atomic_inc_return_wrap(...)				\
+	__atomic_op_fence_wrap(atomic_inc_return, _wrap, __VA_ARGS__)
+#endif /* atomic_inc_return_relaxed_wrap */
 
 /* atomic_sub_return_relaxed */
 #ifndef atomic_sub_return_relaxed
@@ -139,6 +165,13 @@
 #endif
 #endif /* atomic_sub_return_relaxed */
 
+#ifndef atomic_sub_return_relaxed_wrap
+#define atomic_sub_return_relaxed_wrap atomic_sub_return_wrap
+#else
+#define atomic_sub_return_wrap(...)				\
+	__atomic_op_fence_wrap(atomic_sub_return, _wrap, __VA_ARGS__)
+#endif /* atomic_sub_return_relaxed_wrap */
+
 /* atomic_dec_return_relaxed */
 #ifndef atomic_dec_return_relaxed
 #define  atomic_dec_return_relaxed	atomic_dec_return
@@ -163,6 +196,12 @@
 #endif
 #endif /* atomic_dec_return_relaxed */
 
+#ifndef atomic_dec_return_relaxed_wrap
+#define atomic_dec_return_relaxed_wrap atomic_dec_return_wrap
+#else
+#define  atomic_dec_return_wrap(...)				\
+	__atomic_op_fence_wrap(atomic_dec_return, _wrap, __VA_ARGS__)
+#endif /* atomic_dec_return_relaxed_wrap */
 
 /* atomic_fetch_add_relaxed */
 #ifndef atomic_fetch_add_relaxed
@@ -385,19 +424,27 @@
 
 #ifndef atomic_xchg_acquire
 #define  atomic_xchg_acquire(...)					\
-	__atomic_op_acquire(atomic_xchg, __VA_ARGS__)
+	__atomic_op_acquire(atomic_xchg,, __VA_ARGS__)
 #endif
 
 #ifndef atomic_xchg_release
 #define  atomic_xchg_release(...)					\
-	__atomic_op_release(atomic_xchg, __VA_ARGS__)
+	__atomic_op_release(atomic_xchg,, __VA_ARGS__)
 #endif
 
 #ifndef atomic_xchg
 #define  atomic_xchg(...)						\
-	__atomic_op_fence(atomic_xchg, __VA_ARGS__)
+	__atomic_op_fence(atomic_xchg,, __VA_ARGS__)
 #endif
+
 #endif /* atomic_xchg_relaxed */
+
+#ifndef atomic_xchg_relaxed_wrap
+#define atomic_xchg_relaxed_wrap atomic_xchg_wrap
+#else
+#define  atomic_xchg_wrap(...)				\
+	__atomic_op_fence_wrap(atomic_xchg, _wrap, __VA_ARGS__)
+#endif
 
 /* atomic_cmpxchg_relaxed */
 #ifndef atomic_cmpxchg_relaxed
@@ -421,7 +468,15 @@
 #define  atomic_cmpxchg(...)						\
 	__atomic_op_fence(atomic_cmpxchg, __VA_ARGS__)
 #endif
+
 #endif /* atomic_cmpxchg_relaxed */
+
+#ifndef atomic_cmpxchg_relaxed_wrap
+#define atomic_cmpxchg_relaxed_wrap atomic_cmpxchg_wrap
+#else
+#define  atomic_cmpxchg_wrap(...)				\
+	__atomic_op_fence_wrap(atomic_cmpxchg, _wrap, __VA_ARGS__)
+#endif
 
 /* cmpxchg_relaxed */
 #ifndef cmpxchg_relaxed
@@ -627,9 +682,74 @@ static inline int atomic_dec_if_positive(atomic_t *v)
 }
 #endif
 
+#include <asm-generic/atomic_wrap.h>
+
 #ifdef CONFIG_GENERIC_ATOMIC64
 #include <asm-generic/atomic64.h>
 #endif
+
+#ifndef CONFIG_HARDENED_ATOMIC
+
+#ifndef atomic64_wrap_t
+#define atomic64_wrap_t atomic64_wrap_t
+typedef struct {
+	long counter;
+} atomic64_wrap_t;
+#endif
+
+#ifndef atomic64_read_wrap
+#define atomic64_read_wrap(v) atomic64_read((atomic64_t *) v)
+#endif
+#ifndef atomic64_set_wrap
+#define atomic64_set_wrap(v, i) atomic64_set((atomic64_t *) v, (i))
+#endif
+#ifndef atomic64_inc_wrap
+#define atomic64_inc_wrap(l) atomic64_inc((atomic64_t *) l)
+#endif
+#ifndef atomic64_inc_return_wrap
+#define atomic64_inc_return_wrap(l) atomic64_inc_return((atomic64_t *) l)
+#endif
+#ifndef atomic64_inc_and_test_wrap
+#define atomic64_inc_and_test_wrap(l) atomic64_inc_and_test((atomic64_t *) l)
+#endif
+#ifndef atomic64_dec_wrap
+#define atomic64_dec_wrap(l) atomic64_dec((atomic64_t *) l)
+#endif
+#ifndef atomic64_dec_return_wrap
+#define atomic64_dec_return_wrap(l)atomic64_dec_return((atomic64_t *) l)
+#endif
+#ifndef atomic64_dec_and_test_wrap
+#define atomic64_dec_and_test_wrap(l) atomic64_dec_and_test((atomic64_t *) l)
+#endif
+#ifndef atomic64_add_wrap
+#define atomic64_add_wrap(i,l) atomic64_add((i),((atomic64_t *) l))
+#endif
+#ifndef atomic64_add_return_wrap
+#define atomic64_add_return_wrap(i, l) atomic64_add_return((i), ((atomic64_t *) l))
+#endif
+#ifndef atomic64_sub_wrap
+#define atomic64_sub_wrap(i,l) atomic64_sub((i),((atomic64_t *) l))
+#endif
+#ifndef atomic64_sub_return_wrap
+#define atomic64_sub_return_wrap(i, l) atomic64_sub_return((i), ((atomic64_t *) l))
+#endif
+#ifndef atomic64_sub_and_test_wrap
+#define atomic64_sub_and_test_wrap(i, l) atomic64_sub_and_test((i), ((atomic64_t *) l))
+#endif
+#ifndef atomic64_cmpxchg_wrap
+#define atomic64_cmpxchg_wrap(l, o, n) atomic64_cmpxchg(((atomic64_t *) l), (o), (n))
+#endif
+#ifndef atomic64_xchg_wrap
+#define atomic64_xchg_wrap(l, n) atomic64_xchg(((atomic64_t *) l), (n))
+#endif
+#ifndef atomic64_add_unless_wrap
+#define atomic64_add_unless_wrap(l, _a, u) atomic64_add_unless(((atomic64_t *) l), (_a), (u))
+#endif
+#ifndef atomic64_add_negative_wrap
+#define atomic64_add_negative_wrap(i, l) atomic64_add_negative((i), ((atomic64_t *) l))
+#endif
+
+#endif /* CONFIG_HARDENED_ATOMIC */
 
 #ifndef atomic64_read_acquire
 #define  atomic64_read_acquire(v)	smp_load_acquire(&(v)->counter)
@@ -661,6 +781,12 @@ static inline int atomic_dec_if_positive(atomic_t *v)
 #define  atomic64_add_return(...)					\
 	__atomic_op_fence(atomic64_add_return, __VA_ARGS__)
 #endif
+
+#ifndef atomic64_add_return_wrap
+#define  atomic64_add_return_wrap(...)				\
+	__atomic_op_fence(atomic64_add_return_wrap, __VA_ARGS__)
+#endif
+
 #endif /* atomic64_add_return_relaxed */
 
 /* atomic64_inc_return_relaxed */
@@ -684,6 +810,11 @@ static inline int atomic_dec_if_positive(atomic_t *v)
 #ifndef atomic64_inc_return
 #define  atomic64_inc_return(...)					\
 	__atomic_op_fence(atomic64_inc_return, __VA_ARGS__)
+#endif
+
+#ifndef atomic64_inc_return_wrap
+#define  atomic64_inc_return_wrap(...)				\
+	__atomic_op_fence(atomic64_inc_return_wrap, __VA_ARGS__)
 #endif
 #endif /* atomic64_inc_return_relaxed */
 
@@ -710,6 +841,11 @@ static inline int atomic_dec_if_positive(atomic_t *v)
 #define  atomic64_sub_return(...)					\
 	__atomic_op_fence(atomic64_sub_return, __VA_ARGS__)
 #endif
+
+#ifndef atomic64_sub_return_wrap
+#define  atomic64_sub_return_wrap(...)				\
+	__atomic_op_fence(atomic64_sub_return_wrap, __VA_ARGS__)
+#endif
 #endif /* atomic64_sub_return_relaxed */
 
 /* atomic64_dec_return_relaxed */
@@ -733,6 +869,11 @@ static inline int atomic_dec_if_positive(atomic_t *v)
 #ifndef atomic64_dec_return
 #define  atomic64_dec_return(...)					\
 	__atomic_op_fence(atomic64_dec_return, __VA_ARGS__)
+#endif
+
+#ifndef atomic64_dec_return_wrap
+#define  atomic64_dec_return_wrap(...)				\
+	__atomic_op_fence(atomic64_dec_return_wrap, __VA_ARGS__)
 #endif
 #endif /* atomic64_dec_return_relaxed */
 
@@ -970,6 +1111,11 @@ static inline int atomic_dec_if_positive(atomic_t *v)
 #define  atomic64_xchg(...)						\
 	__atomic_op_fence(atomic64_xchg, __VA_ARGS__)
 #endif
+
+#ifndef atomic64_xchg_wrap
+#define  atomic64_xchg_wrap(...)				\
+	__atomic_op_fence(atomic64_xchg_wrap, __VA_ARGS__)
+#endif
 #endif /* atomic64_xchg_relaxed */
 
 /* atomic64_cmpxchg_relaxed */
@@ -993,6 +1139,11 @@ static inline int atomic_dec_if_positive(atomic_t *v)
 #ifndef atomic64_cmpxchg
 #define  atomic64_cmpxchg(...)						\
 	__atomic_op_fence(atomic64_cmpxchg, __VA_ARGS__)
+#endif
+
+#ifndef atomic64_cmpxchg_wrap
+#define  atomic64_cmpxchg_wrap(...)					\
+	__atomic_op_fence(atomic64_cmpxchg_wrap, __VA_ARGS__)
 #endif
 #endif /* atomic64_cmpxchg_relaxed */
 

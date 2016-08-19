@@ -39,6 +39,7 @@ typedef struct
 #define local_add_return(i, l) atomic_long_add_return((i), (&(l)->a))
 #define local_sub_return(i, l) atomic_long_sub_return((i), (&(l)->a))
 #define local_inc_return(l) atomic_long_inc_return(&(l)->a)
+#define local_dec_return(l) atomic_long_dec_return(&(l)->a)
 
 #define local_cmpxchg(l, o, n) atomic_long_cmpxchg((&(l)->a), (o), (n))
 #define local_xchg(l, n) atomic_long_xchg((&(l)->a), (n))
@@ -51,5 +52,7 @@ typedef struct
 #define __local_dec(l)		local_set((l), local_read(l) - 1)
 #define __local_add(i,l)	local_set((l), local_read(l) + (i))
 #define __local_sub(i,l)	local_set((l), local_read(l) - (i))
+
+#include <asm-generic/local_wrap.h>
 
 #endif /* _ASM_GENERIC_LOCAL_H */
