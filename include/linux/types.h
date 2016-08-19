@@ -175,10 +175,27 @@ typedef struct {
 	int counter;
 } atomic_t;
 
+#ifdef CONFIG_HARDENED_ATOMIC
+typedef struct {
+	int counter;
+} atomic_wrap_t;
+#else
+typedef atomic_t atomic_wrap_t;
+#endif
+
 #ifdef CONFIG_64BIT
 typedef struct {
 	long counter;
 } atomic64_t;
+
+#ifdef CONFIG_HARDENED_ATOMIC
+typedef struct {
+	long counter;
+} atomic64_wrap_t;
+#else
+typedef atomic64_t atomic64_wrap_t;
+#endif
+
 #endif
 
 struct list_head {

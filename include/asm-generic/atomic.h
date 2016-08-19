@@ -177,6 +177,10 @@ ATOMIC_OP(xor, ^)
 #define atomic_read(v)	READ_ONCE((v)->counter)
 #endif
 
+#ifndef atomic_read_wrap
+#define atomic_read_wrap(v)	READ_ONCE((v)->counter)
+#endif
+
 /**
  * atomic_set - set atomic variable
  * @v: pointer of type atomic_t
@@ -186,6 +190,19 @@ ATOMIC_OP(xor, ^)
  */
 #define atomic_set(v, i) WRITE_ONCE(((v)->counter), (i))
 
+#ifndef atomic_set_wrap
+#define atomic_set_wrap(v, i) WRITE_ONCE(((v)->counter), (i))
+#endif
+
+#ifndef CONFIG_HARDENED_ATOMIC
+#ifndef atomic_add_return_wrap
+#define atomic_add_return_wrap(i, v) atomic_add_return((i), (v))
+#endif
+#ifndef atomic_sub_return_wrap
+#define atomic_sub_return_wrap(i, v) atomic_sub_return((i), (v))
+#endif
+#endif /* CONFIG_HARDENED_ATOMIC */
+
 #include <linux/irqflags.h>
 
 static inline int atomic_add_negative(int i, atomic_t *v)
@@ -193,9 +210,19 @@ static inline int atomic_add_negative(int i, atomic_t *v)
 	return atomic_add_return(i, v) < 0;
 }
 
+static inline int atomic_add_negative_wrap(int i, atomic_wrap_t *v)
+{
+	return atomic_add_return_wrap(i, v) < 0;
+}
+
 static inline void atomic_add(int i, atomic_t *v)
 {
 	atomic_add_return(i, v);
+}
+
+static inline void atomic_add_wrap(int i, atomic_wrap_t *v)
+{
+	atomic_add_return_wrap(i, v);
 }
 
 static inline void atomic_sub(int i, atomic_t *v)
@@ -203,14 +230,29 @@ static inline void atomic_sub(int i, atomic_t *v)
 	atomic_sub_return(i, v);
 }
 
+static inline void atomic_sub_wrap(int i, atomic_wrap_t *v)
+{
+	atomic_sub_return_wrap(i, v);
+}
+
 static inline void atomic_inc(atomic_t *v)
 {
 	atomic_add_return(1, v);
 }
 
+static inline void atomic_inc_wrap(atomic_wrap_t *v)
+{
+	atomic_add_return_wrap(1, v);
+}
+
 static inline void atomic_dec(atomic_t *v)
 {
 	atomic_sub_return(1, v);
+}
+
+static inline void atomic_dec_wrap(atomic_wrap_t *v)
+{
+	atomic_sub_return_wrap(1, v);
 }
 
 #define atomic_dec_return(v)		atomic_sub_return(1, (v))
@@ -220,14 +262,39 @@ static inline void atomic_dec(atomic_t *v)
 #define atomic_dec_and_test(v)		(atomic_dec_return(v) == 0)
 #define atomic_inc_and_test(v)		(atomic_inc_return(v) == 0)
 
+#ifndef atomic_sub_and_test_wrap
+#define atomic_sub_and_test_wrap(i, v)	(atomic_sub_return_wrap((i), (v)) == 0)
+#endif
+#ifndef atomic_dec_and_test_wrap
+#define atomic_dec_and_test_wrap(v)		(atomic_dec_return_wrap(v) == 0)
+#endif
+#ifndef atomic_inc_and_test_wrap
+#define atomic_inc_and_test_wrap(v)		(atomic_inc_return_wrap(v) == 0)
+#endif
+
 #define atomic_xchg(ptr, v)		(xchg(&(ptr)->counter, (v)))
 #define atomic_cmpxchg(v, old, new)	(cmpxchg(&((v)->counter), (old), (new)))
+
+#ifndef CONFIG_HARDENED_ATOMIC
+#ifndef atomic_cmpxchg_wrap
+#define atomic_cmpxchg_wrap(v, o, n) atomic_cmpxchg((v), (o), (n))
+#endif
+#endif /* CONFIG_HARDENED_ATOMIC */
 
 static inline int __atomic_add_unless(atomic_t *v, int a, int u)
 {
 	int c, old;
 	c = atomic_read(v);
 	while (c != u && (old = atomic_cmpxchg(v, c, c + a)) != c)
+		c = old;
+	return c;
+}
+
+static inline int __atomic_add_unless_wrap(atomic_wrap_t *v, int a, int u)
+{
+	int c, old;
+	c = atomic_read_wrap(v);
+	while (c != u && (old = atomic_cmpxchg_wrap(v, c, c + a)) != c)
 		c = old;
 	return c;
 }

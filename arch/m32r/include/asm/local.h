@@ -26,6 +26,8 @@
  */
 typedef struct { volatile int counter; } local_t;
 
+#include <asm-generic/local_wrap.h>
+
 #define LOCAL_INIT(i)	{ (i) }
 
 /**

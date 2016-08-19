@@ -158,6 +158,26 @@ config HARDENED_USERCOPY_PAGESPAN
 	  been removed. This config is intended to be used only while
 	  trying to find such users.
 
+config HAVE_ARCH_HARDENED_ATOMIC
+	bool
+	help
+	  The architecture supports CONFIG_HARDENED_ATOMIC by
+	  providing trapping on atomic_t wraps, with a call to
+	  hardened_atomic_overflow().
+
+config HARDENED_ATOMIC
+	bool "Prevent reference counter overflow in atomic_t"
+	depends on HAVE_ARCH_HARDENED_ATOMIC
+	depends on !CONFIG_GENERIC_ATOMIC64
+	select BUG
+	help
+	  This option catches counter wrapping in atomic_t, which
+	  can turn refcounting overflow bugs into resource
+	  consumption bugs instead of exploitable use-after-free
+	  flaws. This feature has a negligible
+	  performance impact and therefore recommended to be turned
+	  on for security reasons.
+
 source security/selinux/Kconfig
 source security/smack/Kconfig
 source security/tomoyo/Kconfig
