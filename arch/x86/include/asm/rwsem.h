@@ -64,6 +64,14 @@ static inline void __down_read(struct rw_semaphore *sem)
 {
 	asm volatile("# beginning down_read\n\t"
 		     LOCK_PREFIX _ASM_INC "(%1)\n\t"
+
+#ifdef CONFIG_HARDENED_ATOMIC
+		     "jno 0f\n"
+		     LOCK_PREFIX _ASM_DEC "(%1)\n"
+		     "int $4\n0:\n"
+		     _ASM_EXTABLE(0b, 0b)
+#endif
+
 		     /* adds 0x00000001 */
 		     "  jns        1f\n"
 		     "  call call_rwsem_down_read_failed\n"
@@ -85,6 +93,14 @@ static inline bool __down_read_trylock(struct rw_semaphore *sem)
 		     "1:\n\t"
 		     "  mov          %1,%2\n\t"
 		     "  add          %3,%2\n\t"
+
+#ifdef CONFIG_HARDENED_ATOMIC
+		     "jno 0f\n"
+		     "sub %3,%2\n"
+		     "int $4\n0:\n"
+		     _ASM_EXTABLE(0b, 0b)
+#endif
+
 		     "  jle	     2f\n\t"
 		     LOCK_PREFIX "  cmpxchg  %2,%0\n\t"
 		     "  jnz	     1b\n\t"
@@ -99,6 +115,15 @@ static inline bool __down_read_trylock(struct rw_semaphore *sem)
 /*
  * lock for writing
  */
+#ifdef CONFIG_HARDENED_ATOMIC
+#define ____down_write_undo \
+		     "jno 0f\n"\
+		     "mov %1,(%2)\n"\
+		     "int $4\n0:\n"\
+		     _ASM_EXTABLE(0b, 0b)
+#else
+#define ____down_write_undo
+#endif
 #define ____down_write(sem, slow_path)			\
 ({							\
 	long tmp;					\
@@ -107,6 +132,7 @@ static inline bool __down_read_trylock(struct rw_semaphore *sem)
 							\
 	asm volatile("# beginning down_write\n\t"	\
 		     LOCK_PREFIX "  xadd      %1,(%4)\n\t"	\
+		     ____down_write_undo		\
 		     /* adds 0xffff0001, returns the old value */ \
 		     "  test " __ASM_SEL(%w1,%k1) "," __ASM_SEL(%w1,%k1) "\n\t" \
 		     /* was the active mask 0 before? */\
@@ -168,6 +194,14 @@ static inline void __up_read(struct rw_semaphore *sem)
 	long tmp;
 	asm volatile("# beginning __up_read\n\t"
 		     LOCK_PREFIX "  xadd      %1,(%2)\n\t"
+
+#ifdef CONFIG_HARDENED_ATOMIC
+		     "jno 0f\n"
+		     "mov %1,(%2)\n"
+		     "int $4\n0:\n"
+		     _ASM_EXTABLE(0b, 0b)
+#endif
+
 		     /* subtracts 1, returns the old value */
 		     "  jns        1f\n\t"
 		     "  call call_rwsem_wake\n" /* expects old value in %edx */
@@ -186,6 +220,14 @@ static inline void __up_write(struct rw_semaphore *sem)
 	long tmp;
 	asm volatile("# beginning __up_write\n\t"
 		     LOCK_PREFIX "  xadd      %1,(%2)\n\t"
+
+#ifdef CONFIG_HARDENED_ATOMIC
+		     "jno 0f\n"
+		     "mov %1,(%2)\n"
+		     "int $4\n0:\n"
+		     _ASM_EXTABLE(0b, 0b)
+#endif
+
 		     /* subtracts 0xffff0001, returns the old value */
 		     "  jns        1f\n\t"
 		     "  call call_rwsem_wake\n" /* expects old value in %edx */
@@ -203,6 +245,14 @@ static inline void __downgrade_write(struct rw_semaphore *sem)
 {
 	asm volatile("# beginning __downgrade_write\n\t"
 		     LOCK_PREFIX _ASM_ADD "%2,(%1)\n\t"
+
+#ifdef CONFIG_HARDENED_ATOMIC
+		     "jno 0f\n"
+		     LOCK_PREFIX _ASM_SUB "%2,(%1)\n"
+		     "int $4\n0:\n"
+		     _ASM_EXTABLE(0b, 0b)
+#endif
+
 		     /*
 		      * transitions 0xZZZZ0001 -> 0xYYYY0001 (i386)
 		      *     0xZZZZZZZZ00000001 -> 0xYYYYYYYY00000001 (x86_64)

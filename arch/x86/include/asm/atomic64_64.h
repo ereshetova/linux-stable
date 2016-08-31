@@ -5,6 +5,13 @@
 #include <asm/alternative.h>
 #include <asm/cmpxchg.h>
 
+#ifndef atomic64_wrap_t
+#define atomic64_wrap_t atomic64_wrap_t
+typedef struct {
+	long counter;
+} atomic64_wrap_t;
+#endif
+
 /* The 64-bit atomic type */
 
 #define ATOMIC64_INIT(i)	{ (i) }
@@ -22,6 +29,19 @@ static inline long atomic64_read(const atomic64_t *v)
 }
 
 /**
+ * atomic64_read_wrap - read atomic64 variable
+ * @v: pointer of type atomic64_wrap_t
+ *
+ * Atomically reads the value of @v.
+ * Doesn't imply a read memory barrier.
+ */
+static inline long atomic64_read_wrap(const atomic64_wrap_t *v)
+{
+	return ACCESS_ONCE((v)->counter);
+}
+#define atomic64_read_wrap atomic64_read_wrap
+
+/**
  * atomic64_set - set atomic64 variable
  * @v: pointer to type atomic64_t
  * @i: required value
@@ -34,6 +54,19 @@ static inline void atomic64_set(atomic64_t *v, long i)
 }
 
 /**
+ * atomic64_set_wrap - set atomic64 variable
+ * @v: pointer to type atomic64_wrap_t
+ * @i: required value
+ *
+ * Atomically sets the value of @v to @i.
+ */
+static inline void atomic64_set_wrap(atomic64_wrap_t *v, long i)
+{
+	v->counter = i;
+}
+#define atomic64_set_wrap atomic64_set_wrap
+
+/**
  * atomic64_add - add integer to atomic64 variable
  * @i: integer value to add
  * @v: pointer to type atomic64_t
@@ -42,10 +75,33 @@ static inline void atomic64_set(atomic64_t *v, long i)
  */
 static __always_inline void atomic64_add(long i, atomic64_t *v)
 {
+	asm volatile(LOCK_PREFIX "addq %1,%0\n"
+
+#ifdef CONFIG_HARDENED_ATOMIC
+		     "jno 0f\n"
+		     LOCK_PREFIX "subq %1,%0\n"
+		     "int $4\n0:\n"
+		     _ASM_EXTABLE(0b, 0b)
+#endif
+
+		     : "=m" (v->counter)
+		     : "er" (i), "m" (v->counter));
+}
+
+/**
+ * atomic64_add_wrap - add integer to atomic64 variable
+ * @i: integer value to add
+ * @v: pointer to type atomic64_wrap_t
+ *
+ * Atomically adds @i to @v.
+ */
+static __always_inline void atomic64_add_wrap(long i, atomic64_wrap_t *v)
+{
 	asm volatile(LOCK_PREFIX "addq %1,%0"
 		     : "=m" (v->counter)
 		     : "er" (i), "m" (v->counter));
 }
+#define atomic64_add_wrap atomic64_add_wrap
 
 /**
  * atomic64_sub - subtract the atomic64 variable
@@ -56,10 +112,31 @@ static __always_inline void atomic64_add(long i, atomic64_t *v)
  */
 static inline void atomic64_sub(long i, atomic64_t *v)
 {
+	asm volatile(LOCK_PREFIX "subq %1,%0\n"
+#ifdef CONFIG_HARDENED_ATOMIC
+		     "jno 0f\n"
+		     LOCK_PREFIX "addq %1,%0\n"
+		     "int $4\n0:\n"
+		     _ASM_EXTABLE(0b, 0b)
+#endif
+		     : "=m" (v->counter)
+		     : "er" (i), "m" (v->counter));
+}
+
+/**
++ * atomic64_sub_wrap - subtract the atomic64 variable
++ * @i: integer value to subtract
++ * @v: pointer to type atomic64_wrap_t
++ *
++ * Atomically subtracts @i from @v.
++ */
+static inline void atomic64_sub_wrap(long i, atomic64_wrap_t *v)
+{
 	asm volatile(LOCK_PREFIX "subq %1,%0"
 		     : "=m" (v->counter)
 		     : "er" (i), "m" (v->counter));
 }
+#define atomic64_sub_wrap atomic64_sub_wrap
 
 /**
  * atomic64_sub_and_test - subtract value from variable and test result
@@ -72,8 +149,23 @@ static inline void atomic64_sub(long i, atomic64_t *v)
  */
 static inline bool atomic64_sub_and_test(long i, atomic64_t *v)
 {
-	GEN_BINARY_RMWcc(LOCK_PREFIX "subq", v->counter, "er", i, "%0", e);
+	GEN_BINARY_RMWcc(LOCK_PREFIX "subq", LOCK_PREFIX "addq", v->counter, "er", i, "%0", e);
 }
+
+/**
+ * atomic64_sub_and_test_wrap - subtract value from variable and test result
+ * @i: integer value to subtract
+ * @v: pointer to type atomic64_wrap_t
+ *
+ * Atomically subtracts @i from @v and returns
+ * true if the result is zero, or false for all
+ * other cases.
+ */
+static inline bool atomic64_sub_and_test_wrap(long i, atomic64_wrap_t *v)
+{
+	GEN_BINARY_RMWcc_wrap(LOCK_PREFIX "subq", v->counter, "er", i, "%0", e);
+}
+#define atomic64_sub_and_test_wrap atomic64_sub_and_test_wrap
 
 /**
  * atomic64_inc - increment atomic64 variable
@@ -83,10 +175,31 @@ static inline bool atomic64_sub_and_test(long i, atomic64_t *v)
  */
 static __always_inline void atomic64_inc(atomic64_t *v)
 {
+	asm volatile(LOCK_PREFIX "incq %0\n"
+
+#ifdef CONFIG_HARDENED_ATOMIC
+		     "jno 0f\n"
+		     LOCK_PREFIX "decq %0\n"
+		     "int $4\n0:\n"
+		     _ASM_EXTABLE(0b, 0b)
+#endif
+		     : "=m" (v->counter)
+		     : "m" (v->counter));
+}
+
+/**
+ * atomic64_inc_wrap - increment atomic64 variable
+ * @v: pointer to type atomic64_wrap_t
+ *
+ * Atomically increments @v by 1.
+ */
+static __always_inline void atomic64_inc_wrap(atomic64_wrap_t *v)
+{
 	asm volatile(LOCK_PREFIX "incq %0"
 		     : "=m" (v->counter)
 		     : "m" (v->counter));
 }
+#define atomic64_inc_wrap atomic64_inc_wrap
 
 /**
  * atomic64_dec - decrement atomic64 variable
@@ -96,10 +209,31 @@ static __always_inline void atomic64_inc(atomic64_t *v)
  */
 static __always_inline void atomic64_dec(atomic64_t *v)
 {
+	asm volatile(LOCK_PREFIX "decq %0\n"
+
+#ifdef CONFIG_HARDENED_ATOMIC
+		     "jno 0f\n"
+		     LOCK_PREFIX "incq %0\n"
+		     "int $4\n0:\n"
+		     _ASM_EXTABLE(0b, 0b)
+#endif
+		     : "=m" (v->counter)
+		     : "m" (v->counter));
+}
+
+/**
+ * atomic64_dec_wrap - decrement atomic64 variable
+ * @v: pointer to type atomic64_wrap_t
+ *
+ * Atomically decrements @v by 1.
+ */
+static __always_inline void atomic64_dec_wrap(atomic64_wrap_t *v)
+{
 	asm volatile(LOCK_PREFIX "decq %0"
 		     : "=m" (v->counter)
 		     : "m" (v->counter));
 }
+#define atomic64_dec_wrap atomic64_dec_wrap
 
 /**
  * atomic64_dec_and_test - decrement and test
@@ -111,8 +245,14 @@ static __always_inline void atomic64_dec(atomic64_t *v)
  */
 static inline bool atomic64_dec_and_test(atomic64_t *v)
 {
-	GEN_UNARY_RMWcc(LOCK_PREFIX "decq", v->counter, "%0", e);
+	GEN_UNARY_RMWcc(LOCK_PREFIX "decq", LOCK_PREFIX "incq", v->counter, "%0", e);
 }
+
+static inline bool atomic64_dec_and_test_wrap(atomic64_wrap_t *v)
+{
+	GEN_UNARY_RMWcc_wrap(LOCK_PREFIX "decq", v->counter, "%0", e);
+}
+#define atomic64_dec_and_test_wrap atomic64_dec_and_test_wrap
 
 /**
  * atomic64_inc_and_test - increment and test
@@ -124,8 +264,14 @@ static inline bool atomic64_dec_and_test(atomic64_t *v)
  */
 static inline bool atomic64_inc_and_test(atomic64_t *v)
 {
-	GEN_UNARY_RMWcc(LOCK_PREFIX "incq", v->counter, "%0", e);
+	GEN_UNARY_RMWcc(LOCK_PREFIX "incq", LOCK_PREFIX "decq", v->counter, "%0", e);
 }
+
+static inline bool atomic64_inc_and_test_wrap(atomic64_wrap_t *v)
+{
+	GEN_UNARY_RMWcc_wrap(LOCK_PREFIX "incq", v->counter, "%0", e);
+}
+#define atomic64_inc_and_test_wrap atomic64_inc_and_test_wrap
 
 /**
  * atomic64_add_negative - add and test if negative
@@ -138,8 +284,14 @@ static inline bool atomic64_inc_and_test(atomic64_t *v)
  */
 static inline bool atomic64_add_negative(long i, atomic64_t *v)
 {
-	GEN_BINARY_RMWcc(LOCK_PREFIX "addq", v->counter, "er", i, "%0", s);
+	GEN_BINARY_RMWcc(LOCK_PREFIX "addq", LOCK_PREFIX "subq", v->counter, "er", i, "%0", s);
 }
+
+static inline bool atomic64_add_negative_wrap(long i, atomic64_wrap_t *v)
+{
+	GEN_BINARY_RMWcc_wrap(LOCK_PREFIX "addq", v->counter, "er", i, "%0", s);
+}
+#define atomic64_add_negative_wrap atomic64_add_negative_wrap
 
 /**
  * atomic64_add_return - add and return
@@ -150,13 +302,25 @@ static inline bool atomic64_add_negative(long i, atomic64_t *v)
  */
 static __always_inline long atomic64_add_return(long i, atomic64_t *v)
 {
+	return i + xadd_check_overflow(&v->counter, i);
+}
+
+static __always_inline long atomic64_add_return_wrap(long i, atomic64_wrap_t *v)
+{
 	return i + xadd(&v->counter, i);
 }
+#define atomic64_add_return_wrap atomic64_add_return_wrap
 
 static inline long atomic64_sub_return(long i, atomic64_t *v)
 {
 	return atomic64_add_return(-i, v);
 }
+
+static inline long atomic64_sub_return_wrap(long i, atomic64_wrap_t *v)
+{
+	return atomic64_add_return_wrap(-i, v);
+}
+#define atomic64_sub_return_wrap atomic64_sub_return_wrap
 
 static inline long atomic64_fetch_add(long i, atomic64_t *v)
 {
@@ -171,15 +335,30 @@ static inline long atomic64_fetch_sub(long i, atomic64_t *v)
 #define atomic64_inc_return(v)  (atomic64_add_return(1, (v)))
 #define atomic64_dec_return(v)  (atomic64_sub_return(1, (v)))
 
+#define atomic64_inc_return_wrap(v)  (atomic64_add_return_wrap(1, (v)))
+#define atomic64_dec_return_wrap(v)  (atomic64_sub_return_wrap(1, (v)))
+
 static inline long atomic64_cmpxchg(atomic64_t *v, long old, long new)
 {
 	return cmpxchg(&v->counter, old, new);
 }
 
+static inline long atomic64_cmpxchg_wrap(atomic64_wrap_t *v, long old, long new)
+{
+	return cmpxchg(&v->counter, old, new);
+}
+#define atomic64_cmpxchg_wrap atomic64_cmpxchg_wrap
+
 static inline long atomic64_xchg(atomic64_t *v, long new)
 {
 	return xchg(&v->counter, new);
 }
+
+static inline long atomic64_xchg_wrap(atomic64_wrap_t *v, long new)
+{
+	return xchg(&v->counter, new);
+}
+#define atomic64_xchg_wrap atomic64_xchg_wrap
 
 /**
  * atomic64_add_unless - add unless the number is a given value
@@ -192,11 +371,21 @@ static inline long atomic64_xchg(atomic64_t *v, long new)
  */
 static inline bool atomic64_add_unless(atomic64_t *v, long a, long u)
 {
-	long c, old;
+	long c, old, new;
 	c = atomic64_read(v);
 	for (;;) {
 		if (unlikely(c == (u)))
 			break;
+		asm volatile("add %2,%0\n"
+#ifdef CONFIG_HARDENED_ATOMIC
+			     "jno 0f\n"
+			     "sub %2,%0\n"
+			     "int $4\n0:\n"
+			     _ASM_EXTABLE(0b, 0b)
+#endif
+			     : "=r" (new)
+			     : "0" (c), "ir" (a));
+
 		old = atomic64_cmpxchg((v), c, c + (a));
 		if (likely(old == c))
 			break;
@@ -204,6 +393,26 @@ static inline bool atomic64_add_unless(atomic64_t *v, long a, long u)
 	}
 	return c != (u);
 }
+
+static inline bool atomic64_add_unless_wrap(atomic64_wrap_t *v, long a, long u)
+{
+	long c, old, new;
+	c = atomic64_read_wrap(v);
+	for (;;) {
+		if (unlikely(c == (u)))
+			break;
+		asm volatile("add %2,%0\n"
+			     : "=r" (new)
+			     : "0" (c), "ir" (a));
+
+		old = atomic64_cmpxchg_wrap((v), c, c + (a));
+		if (likely(old == c))
+			break;
+		c = old;
+	}
+	return c != (u);
+}
+#define atomic64_add_unless_wrap atomic64_add_unless_wrap
 
 #define atomic64_inc_not_zero(v) atomic64_add_unless((v), 1, 0)
 

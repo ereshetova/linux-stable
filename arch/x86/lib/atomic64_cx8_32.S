@@ -22,8 +22,18 @@
 
 ENTRY(atomic64_read_cx8)
 	read64 %ecx
+	/* Pax has pax_force_retaddr here
+	 * do we want similar? If yes, changes
+	 * have to be made in more places below */
 	ret
 ENDPROC(atomic64_read_cx8)
+
+ENTRY(atomic64_read_wrap_cx8)
+	read64 %ecx
+/* do we want smth like the below line?
+ *	pax_force_retaddr */
+	ret
+ENDPROC(atomic64_read_wrap_cx8)
 
 ENTRY(atomic64_set_cx8)
 1:
@@ -35,6 +45,17 @@ ENTRY(atomic64_set_cx8)
 	ret
 ENDPROC(atomic64_set_cx8)
 
+ENTRY(atomic64_set_wrap_cx8)
+1:
+/* we don't need LOCK_PREFIX since aligned 64-bit writes
+ * are atomic on 586 and newer */
+	cmpxchg8b (%esi)
+	jne 1b
+
+	/* pax_force_retaddr */
+	ret
+ENDPROC(atomic64_set_wrap_cx8)
+
 ENTRY(atomic64_xchg_cx8)
 1:
 	LOCK_PREFIX
@@ -44,8 +65,8 @@ ENTRY(atomic64_xchg_cx8)
 	ret
 ENDPROC(atomic64_xchg_cx8)
 
-.macro addsub_return func ins insc
-ENTRY(atomic64_\func\()_return_cx8)
+.macro addsub_return func ins insc wrap=""
+ENTRY(atomic64_\func\()_return\wrap\()_cx8)
 	pushl %ebp
 	pushl %ebx
 	pushl %esi
@@ -61,6 +82,13 @@ ENTRY(atomic64_\func\()_return_cx8)
 	movl %edx, %ecx
 	\ins\()l %esi, %ebx
 	\insc\()l %edi, %ecx
+#ifdef CONFIG_HARDENED_ATOMIC
+.ifb \wrap
+	into
+2:
+	_ASM_EXTABLE(2b, 3f)
+.endif
+#endif
 	LOCK_PREFIX
 	cmpxchg8b (%ebp)
 	jne 1b
@@ -68,19 +96,27 @@ ENTRY(atomic64_\func\()_return_cx8)
 10:
 	movl %ebx, %eax
 	movl %ecx, %edx
+
+.ifb \wrap
+#ifdef CONFIG_HARDENED_ATOMIC
+3:
+#endif
+.endif
 	popl %edi
 	popl %esi
 	popl %ebx
 	popl %ebp
 	ret
-ENDPROC(atomic64_\func\()_return_cx8)
+ENDPROC(atomic64_\func\()_return\wrap\()_cx8)
 .endm
 
 addsub_return add add adc
 addsub_return sub sub sbb
+addsub_return add add adc _wrap
+addsub_return sub sub sbb _wrap
 
-.macro incdec_return func ins insc
-ENTRY(atomic64_\func\()_return_cx8)
+.macro incdec_return func ins insc wrap=""
+ENTRY(atomic64_\func\()_return\wrap\()_cx8)
 	pushl %ebx
 
 	read64 %esi
@@ -89,6 +125,13 @@ ENTRY(atomic64_\func\()_return_cx8)
 	movl %edx, %ecx
 	\ins\()l $1, %ebx
 	\insc\()l $0, %ecx
+#ifdef CONFIG_HARDENED_ATOMIC
+.ifb \wrap
+	into
+2:
+	_ASM_EXTABLE(2b, 3f)
+.endif
+#endif
 	LOCK_PREFIX
 	cmpxchg8b (%esi)
 	jne 1b
@@ -96,13 +139,21 @@ ENTRY(atomic64_\func\()_return_cx8)
 10:
 	movl %ebx, %eax
 	movl %ecx, %edx
+
+.ifb \wrap
+#ifdef CONFIG_HARDENED_ATOMIC
+3:
+#endif
+.endif
 	popl %ebx
 	ret
-ENDPROC(atomic64_\func\()_return_cx8)
+ENDPROC(atomic64_\func\()_return\wrap\()_cx8)
 .endm
 
 incdec_return inc add adc
 incdec_return dec sub sbb
+incdec_return inc add adc _wrap
+incdec_return dec sub sbb _wrap
 
 ENTRY(atomic64_dec_if_positive_cx8)
 	pushl %ebx
@@ -113,6 +164,11 @@ ENTRY(atomic64_dec_if_positive_cx8)
 	movl %edx, %ecx
 	subl $1, %ebx
 	sbb $0, %ecx
+#ifdef CONFIG_HARDENED_ATOMIC
+	into
+1234:
+	_ASM_EXTABLE(1234b, 2f)
+#endif
 	js 2f
 	LOCK_PREFIX
 	cmpxchg8b (%esi)
@@ -144,6 +200,11 @@ ENTRY(atomic64_add_unless_cx8)
 	movl %edx, %ecx
 	addl %ebp, %ebx
 	adcl %edi, %ecx
+#ifdef CONFIG_HARDENED_ATOMIC
+	into
+1234:
+	_ASM_EXTABLE(1234b, 3f)
+#endif
 	LOCK_PREFIX
 	cmpxchg8b (%esi)
 	jne 1b
@@ -173,6 +234,11 @@ ENTRY(atomic64_inc_not_zero_cx8)
 	xorl %ecx, %ecx
 	addl $1, %ebx
 	adcl %edx, %ecx
+#ifdef CONFIG_HARDENED_ATOMIC
+	into
+1234:
+	_ASM_EXTABLE(1234b, 3f)
+#endif
 	LOCK_PREFIX
 	cmpxchg8b (%esi)
 	jne 1b
