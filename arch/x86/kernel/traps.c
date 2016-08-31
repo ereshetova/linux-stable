@@ -191,6 +191,10 @@ do_trap_no_signal(struct task_struct *tsk, int trapnr, char *str,
 			tsk->thread.trap_nr = trapnr;
 			die(str, regs, error_code);
 		}
+
+		if (trapnr == X86_TRAP_OF)
+			hardened_atomic_overflow(regs);
+
 		return 0;
 	}
 
