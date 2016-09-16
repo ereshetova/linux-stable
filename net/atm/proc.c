@@ -45,9 +45,11 @@ static void add_stats(struct seq_file *seq, const char *aal,
   const struct k_atm_aal_stats *stats)
 {
 	seq_printf(seq, "%s ( %d %d %d %d %d )", aal,
-		   atomic_read(&stats->tx), atomic_read(&stats->tx_err),
-		   atomic_read(&stats->rx), atomic_read(&stats->rx_err),
-		   atomic_read(&stats->rx_drop));
+		   atomic_read_wrap(&stats->tx),
+		   atomic_read_wrap(&stats->tx_err),
+		   atomic_read_wrap(&stats->rx),
+		   atomic_read_wrap(&stats->rx_err),
+		   atomic_read_wrap(&stats->rx_drop));
 }
 
 static void atm_dev_info(struct seq_file *seq, const struct atm_dev *dev)
