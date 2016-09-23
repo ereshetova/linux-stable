@@ -304,7 +304,7 @@ static int tboot_extended_sleep(u8 sleep_state, u32 val_a, u32 val_b)
 	return -ENODEV;
 }
 
-static atomic_t ap_wfs_count;
+static atomic_wrap_t ap_wfs_count;
 
 static int tboot_wait_for_aps(int num_aps)
 {
@@ -325,9 +325,9 @@ static int tboot_wait_for_aps(int num_aps)
 
 static int tboot_dying_cpu(unsigned int cpu)
 {
-	atomic_inc(&ap_wfs_count);
+	atomic_inc_wrap(&ap_wfs_count);
 	if (num_online_cpus() == 1) {
-		if (tboot_wait_for_aps(atomic_read(&ap_wfs_count)))
+		if (tboot_wait_for_aps(atomic_read_wrap(&ap_wfs_count)))
 			return -EBUSY;
 	}
 	return 0;
@@ -407,7 +407,7 @@ static __init int tboot_late_init(void)
 
 	tboot_create_trampoline();
 
-	atomic_set(&ap_wfs_count, 0);
+	atomic_set_wrap(&ap_wfs_count, 0);
 	cpuhp_setup_state(CPUHP_AP_X86_TBOOT_DYING, "AP_X86_TBOOT_DYING", NULL,
 			  tboot_dying_cpu);
 #ifdef CONFIG_DEBUG_FS
