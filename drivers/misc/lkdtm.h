@@ -4,9 +4,50 @@
 #define pr_fmt(fmt) "lkdtm: " fmt
 
 #include <linux/kernel.h>
+#include <linux/fs.h>
+
+/*
+ * Handle the various atomic function prototypes (potentially ignoring
+ * return values).
+ */
+#define ATOMIC_ARG_X(func, x)			func(x)
+#define ATOMIC_ARG_1_X(func, x)			func(1, x)
+#define ATOMIC_RET_ARG_X(func, x)		if (func(x)) ;
+#define ATOMIC_RET_ARG_1_X(func, x)		if (func(1, x)) ;
+#define ATOMIC_RET_ARG_X_1_0(func, x)		if (func(x, 1, 0)) ;
+
+/* The list of all tested atomic operations. */
+#define LKDTM_ATOMIC_OPERATIONS(macro)				\
+	macro(UNDERFLOW, dec,		ATOMIC_ARG_X)		\
+	macro(UNDERFLOW, dec_return,	ATOMIC_RET_ARG_X)	\
+	macro(UNDERFLOW, dec_and_test,	ATOMIC_RET_ARG_X)	\
+	macro(UNDERFLOW, sub,		ATOMIC_ARG_1_X)		\
+	macro(UNDERFLOW, sub_return,	ATOMIC_RET_ARG_1_X)	\
+	macro(UNDERFLOW, sub_and_test,	ATOMIC_RET_ARG_1_X)	\
+	macro(OVERFLOW,  inc,		ATOMIC_ARG_X)		\
+	macro(OVERFLOW,  inc_return,	ATOMIC_RET_ARG_X)	\
+	macro(OVERFLOW,  inc_and_test,	ATOMIC_RET_ARG_X)	\
+	macro(OVERFLOW,  add,		ATOMIC_ARG_1_X)		\
+	macro(OVERFLOW,  add_return,	ATOMIC_RET_ARG_1_X)	\
+	macro(OVERFLOW,  add_unless,	ATOMIC_RET_ARG_X_1_0)	\
+	macro(OVERFLOW,  add_negative,	ATOMIC_RET_ARG_1_X)
+
+/* The list of all tested atomic types. */
+#define LKDTM_ATOMIC_TYPES(macro, name, operation)		\
+	macro(name,	atomic,		operation)		\
+	macro(name,	atomic_long,	operation)		\
+	macro(name,	local,		operation)		\
+	macro(name,	atomic64,	operation)
+
+/* Generate function prototypes for all atomic operation/type combinations. */
+#define LKDTM_ATOMIC_FUNCDECL(name, atomic_type, operation)		\
+	void lkdtm_##name##_##atomic_type##_##operation(void);
+
+#define LKDTM_ATOMIC_FUNCDECLS(name, operation, ignored)		\
+	LKDTM_ATOMIC_TYPES(LKDTM_ATOMIC_FUNCDECL, name, operation)
 
 /* lkdtm_bugs.c */
-void __init lkdtm_bugs_init(int *recur_param);
+void __init lkdtm_bugs_init(int *recur_param, struct dentry *parent);
 void lkdtm_PANIC(void);
 void lkdtm_BUG(void);
 void lkdtm_WARNING(void);
@@ -19,8 +60,7 @@ void lkdtm_SOFTLOCKUP(void);
 void lkdtm_HARDLOCKUP(void);
 void lkdtm_SPINLOCKUP(void);
 void lkdtm_HUNG_TASK(void);
-void lkdtm_ATOMIC_UNDERFLOW(void);
-void lkdtm_ATOMIC_OVERFLOW(void);
+LKDTM_ATOMIC_OPERATIONS(LKDTM_ATOMIC_FUNCDECLS);
 
 /* lkdtm_heap.c */
 void lkdtm_OVERWRITE_ALLOCATION(void);
