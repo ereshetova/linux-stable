@@ -189,6 +189,13 @@ struct crashtype {
 		.func = lkdtm_ ## _name,	\
 	}
 
+/* Generate crashtype entries for all atomic operation/type combinations. */
+#define CRASHTYPE_ATOMIC(name, atomic_name, operation)	\
+	CRASHTYPE(name##_##atomic_name##_##operation),		\
+
+#define CRASHTYPE_ATOMICS(name, operation, ignored)		\
+	LKDTM_ATOMIC_TYPES(CRASHTYPE_ATOMIC, name, operation)
+
 /* Define the possible types of crashes that can be triggered. */
 struct crashtype crashtypes[] = {
 	CRASHTYPE(PANIC),
@@ -218,8 +225,6 @@ struct crashtype crashtypes[] = {
 	CRASHTYPE(WRITE_RO),
 	CRASHTYPE(WRITE_RO_AFTER_INIT),
 	CRASHTYPE(WRITE_KERN),
-	CRASHTYPE(ATOMIC_UNDERFLOW),
-	CRASHTYPE(ATOMIC_OVERFLOW),
 	CRASHTYPE(USERCOPY_HEAP_SIZE_TO),
 	CRASHTYPE(USERCOPY_HEAP_SIZE_FROM),
 	CRASHTYPE(USERCOPY_HEAP_FLAG_TO),
@@ -228,6 +233,7 @@ struct crashtype crashtypes[] = {
 	CRASHTYPE(USERCOPY_STACK_FRAME_FROM),
 	CRASHTYPE(USERCOPY_STACK_BEYOND),
 	CRASHTYPE(USERCOPY_KERNEL),
+	LKDTM_ATOMIC_OPERATIONS(CRASHTYPE_ATOMICS)
 };
 
 
@@ -481,17 +487,17 @@ static int __init lkdtm_module_init(void)
 	crash_count = cpoint_count;
 #endif
 
-	/* Handle test-specific initialization. */
-	lkdtm_bugs_init(&recur_count);
-	lkdtm_perms_init();
-	lkdtm_usercopy_init();
-
 	/* Register debugfs interface */
 	lkdtm_debugfs_root = debugfs_create_dir("provoke-crash", NULL);
 	if (!lkdtm_debugfs_root) {
 		pr_err("creating root dir failed\n");
 		return -ENODEV;
 	}
+
+	/* Handle test-specific initialization. */
+	lkdtm_bugs_init(&recur_count, lkdtm_debugfs_root);
+	lkdtm_perms_init();
+	lkdtm_usercopy_init();
 
 	/* Install debugfs trigger files. */
 	for (i = 0; i < ARRAY_SIZE(crashpoints); i++) {

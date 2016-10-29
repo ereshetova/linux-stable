@@ -5,6 +5,7 @@
  * test source files.
  */
 #include "lkdtm.h"
+#include <linux/debugfs.h>
 #include <linux/sched.h>
 
 /*
@@ -33,15 +34,6 @@ static int recursive_loop(int remaining)
 		return 0;
 	else
 		return recursive_loop(remaining - 1);
-}
-
-/* If the depth is negative, use the default, otherwise keep parameter. */
-void __init lkdtm_bugs_init(int *recur_param)
-{
-	if (*recur_param < 0)
-		*recur_param = recur_count;
-	else
-		recur_count = *recur_param;
 }
 
 void lkdtm_PANIC(void)
@@ -123,26 +115,100 @@ void lkdtm_HUNG_TASK(void)
 	schedule();
 }
 
-void lkdtm_ATOMIC_UNDERFLOW(void)
-{
-	atomic_t under = ATOMIC_INIT(INT_MIN);
-
-	pr_info("attempting good atomic increment\n");
-	atomic_inc(&under);
-	atomic_dec(&under);
-
-	pr_info("attempting bad atomic underflow\n");
-	atomic_dec(&under);
+#define GENERATE_LKDTM_ATOMIC_TYPE(ignore1, atomic_name, ignore2)	\
+																	\
+static atomic_name##_t atomic_name##_var;							\
+																	\
+static int debugfs_##atomic_name##_get(void *data, u64 *val)		\
+{																	\
+	*val = atomic_name##_read((atomic_name##_t *)data);				\
+	return 0;														\
+}																	\
+																	\
+DEFINE_DEBUGFS_ATTRIBUTE(fops_##atomic_name,						\
+						 debugfs_##atomic_name##_get,				\
+						 NULL, "%lld\n");							\
+																	\
+static struct dentry *debugfs_create_##atomic_name(const char *item,\
+				umode_t mode,										\
+				struct dentry *parent,								\
+				atomic_name##_t *value)								\
+{																	\
+	return debugfs_create_file_unsafe(item, mode, parent, value,	\
+					&fops_##atomic_name);							\
 }
 
-void lkdtm_ATOMIC_OVERFLOW(void)
-{
-	atomic_t over = ATOMIC_INIT(INT_MAX);
+LKDTM_ATOMIC_TYPES(GENERATE_LKDTM_ATOMIC_TYPE, 0, 0)
 
-	pr_info("attempting good atomic decrement\n");
-	atomic_dec(&over);
-	atomic_inc(&over);
+#define ATOMIC_TEST(name, atomic_name, init_func, start, safe_func,	\
+					test_func_proto, testfunc)						\
+																	\
+void lkdtm_##name##_##testfunc(void)								\
+{																	\
+	atomic_name##_set(&atomic_name##_var, start);					\
+																	\
+	pr_info("attempting good " #testfunc "\n");						\
+	safe_func(&atomic_name##_var);									\
+	test_func_proto(testfunc, &atomic_name##_var);					\
+																	\
+	pr_info("attempting bad " #testfunc "\n");						\
+	test_func_proto(testfunc, &atomic_name##_var);					\
+}
 
-	pr_info("attempting bad atomic overflow\n");
-	atomic_inc(&over);
+/* Declare underflow test functions for atomic_t and atomic_long_t types. */
+#define LKDTM_ATOMIC_UNDERFLOW(operation, test_func_proto)			\
+	ATOMIC_TEST(UNDERFLOW, atomic, ATOMIC_INIT, INT_MIN,			\
+				atomic_inc, test_func_proto, atomic_##operation)	\
+	ATOMIC_TEST(UNDERFLOW, atomic_long, ATOMIC_LONG_INIT,			\
+				LONG_MIN, atomic_long_inc, test_func_proto,			\
+				atomic_long_##operation)							\
+	ATOMIC_TEST(UNDERFLOW, atomic64, ATOMIC64_INIT,					\
+				S64_MIN, atomic64_inc, test_func_proto,				\
+				atomic64_##operation)								\
+	ATOMIC_TEST(UNDERFLOW, local, LOCAL_INIT,						\
+				LONG_MIN, local_inc, test_func_proto,				\
+				local_##operation)
+
+/* Declare overflow test functions for atomic_t and atomic_long_t types. */
+#define LKDTM_ATOMIC_OVERFLOW(operation, test_func_proto)			\
+	ATOMIC_TEST(OVERFLOW, atomic, ATOMIC_INIT, INT_MAX,				\
+				atomic_dec, test_func_proto, atomic_##operation)	\
+	ATOMIC_TEST(OVERFLOW, atomic_long, ATOMIC_LONG_INIT,			\
+				LONG_MAX, atomic_long_dec, test_func_proto,			\
+				atomic_long_##operation)							\
+	ATOMIC_TEST(OVERFLOW, atomic64, ATOMIC64_INIT,					\
+				S64_MAX, atomic64_dec, test_func_proto,				\
+				atomic64_##operation)								\
+	ATOMIC_TEST(OVERFLOW, local, LOCAL_INIT,						\
+				LONG_MAX, local_dec, test_func_proto,				\
+				local_##operation)
+
+#define GENERATE_LKDTM_ATOMIC_TEST(name, operation, test_func_proto)	\
+	LKDTM_ATOMIC_##name(operation, test_func_proto)
+
+LKDTM_ATOMIC_OPERATIONS(GENERATE_LKDTM_ATOMIC_TEST)
+
+#define GENERATE_LKDTM_ATOMIC_DEBUGFS(ignore1, atomic_name, ignore2)	\
+	de = debugfs_create_##atomic_name(#atomic_name, 0644,				\
+					  atomic_dir,										\
+					  &atomic_name##_var);								\
+	if (de == NULL)														\
+		pr_err("could not create " #atomic_name " in debugfs\n");
+
+void __init lkdtm_bugs_init(int *recur_param, struct dentry *parent) {
+	struct dentry *atomic_dir, *de;
+
+	/* If the depth is negative, use default, otherwise keep parameter. */
+	if (*recur_param < 0)
+		*recur_param = recur_count;
+	else
+		recur_count = *recur_param;
+
+	/* Don't treat failures to create the atomic value tree as fatal. */
+	atomic_dir = debugfs_create_dir("atomic", parent);
+	if (atomic_dir) {
+		LKDTM_ATOMIC_TYPES(GENERATE_LKDTM_ATOMIC_DEBUGFS, 0, 0);
+	} else {
+		pr_err("creating atomic dir failed\n");
+ }
 }
