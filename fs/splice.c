@@ -188,7 +188,7 @@ ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
 	if (!spd_pages)
 		return 0;
 
-	if (unlikely(!pipe->readers)) {
+	if (unlikely(!atomic_read(&pipe->readers))) {
 		send_sig(SIGPIPE, current, 0);
 		ret = -EPIPE;
 		goto out;
@@ -227,7 +227,7 @@ ssize_t add_to_pipe(struct pipe_inode_info *pipe, struct pipe_buffer *buf)
 {
 	int ret;
 
-	if (unlikely(!pipe->readers)) {
+	if (unlikely(!atomic_read(&pipe->readers))) {
 		send_sig(SIGPIPE, current, 0);
 		ret = -EPIPE;
 	} else if (pipe->nrbufs == pipe->buffers) {
@@ -537,7 +537,7 @@ static int splice_from_pipe_feed(struct pipe_inode_info *pipe, struct splice_des
 			pipe_buf_release(pipe, buf);
 			pipe->curbuf = (pipe->curbuf + 1) & (pipe->buffers - 1);
 			pipe->nrbufs--;
-			if (pipe->files)
+			if (atomic_read(&pipe->files))
 				sd->need_wakeup = true;
 		}
 
@@ -568,10 +568,10 @@ static int splice_from_pipe_next(struct pipe_inode_info *pipe, struct splice_des
 		return -ERESTARTSYS;
 
 	while (!pipe->nrbufs) {
-		if (!pipe->writers)
+		if (!atomic_read(&pipe->writers))
 			return 0;
 
-		if (!pipe->waiting_writers && sd->num_spliced)
+		if (!atomic_read(&pipe->waiting_writers) && sd->num_spliced)
 			return 0;
 
 		if (sd->flags & SPLICE_F_NONBLOCK)
@@ -785,7 +785,7 @@ iter_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 				pipe_buf_release(pipe, buf);
 				pipe->curbuf = (pipe->curbuf + 1) & (pipe->buffers - 1);
 				pipe->nrbufs--;
-				if (pipe->files)
+				if (atomic_read(&pipe->files))
 					sd.need_wakeup = true;
 			} else {
 				buf->offset += ret;
@@ -948,7 +948,7 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 		 * out of the pipe right after the splice_to_pipe(). So set
 		 * PIPE_READERS appropriately.
 		 */
-		pipe->readers = 1;
+		atomic_set(&pipe->readers, 1);
 
 		current->splice_pipe = pipe;
 	}
@@ -1095,9 +1095,9 @@ static int wait_for_space(struct pipe_inode_info *pipe, unsigned flags)
 			return -EAGAIN;
 		if (signal_pending(current))
 			return -ERESTARTSYS;
-		pipe->waiting_writers++;
+		atomic_inc(&pipe->waiting_writers);
 		pipe_wait(pipe);
-		pipe->waiting_writers--;
+		atomic_dec(&pipe->waiting_writers);
 	}
 	return 0;
 }
@@ -1445,9 +1445,9 @@ static int ipipe_prep(struct pipe_inode_info *pipe, unsigned int flags)
 			ret = -ERESTARTSYS;
 			break;
 		}
-		if (!pipe->writers)
+		if (!atomic_read(&pipe->writers))
 			break;
-		if (!pipe->waiting_writers) {
+		if (!atomic_read(&pipe->waiting_writers)) {
 			if (flags & SPLICE_F_NONBLOCK) {
 				ret = -EAGAIN;
 				break;
@@ -1479,7 +1479,7 @@ static int opipe_prep(struct pipe_inode_info *pipe, unsigned int flags)
 	pipe_lock(pipe);
 
 	while (pipe->nrbufs >= pipe->buffers) {
-		if (!pipe->readers) {
+		if (!atomic_read(&pipe->readers)) {
 			send_sig(SIGPIPE, current, 0);
 			ret = -EPIPE;
 			break;
@@ -1492,9 +1492,9 @@ static int opipe_prep(struct pipe_inode_info *pipe, unsigned int flags)
 			ret = -ERESTARTSYS;
 			break;
 		}
-		pipe->waiting_writers++;
+		atomic_inc(&pipe->waiting_writers);
 		pipe_wait(pipe);
-		pipe->waiting_writers--;
+		atomic_dec(&pipe->waiting_writers);
 	}
 
 	pipe_unlock(pipe);
@@ -1530,14 +1530,14 @@ retry:
 	pipe_double_lock(ipipe, opipe);
 
 	do {
-		if (!opipe->readers) {
+		if (!atomic_read(&opipe->readers)) {
 			send_sig(SIGPIPE, current, 0);
 			if (!ret)
 				ret = -EPIPE;
 			break;
 		}
 
-		if (!ipipe->nrbufs && !ipipe->writers)
+		if (!ipipe->nrbufs && !atomic_read(&ipipe->writers))
 			break;
 
 		/*
@@ -1634,7 +1634,7 @@ static int link_pipe(struct pipe_inode_info *ipipe,
 	pipe_double_lock(ipipe, opipe);
 
 	do {
-		if (!opipe->readers) {
+		if (!atomic_read(&opipe->readers)) {
 			send_sig(SIGPIPE, current, 0);
 			if (!ret)
 				ret = -EPIPE;
@@ -1679,7 +1679,7 @@ static int link_pipe(struct pipe_inode_info *ipipe,
 	 * return EAGAIN if we have the potential of some data in the
 	 * future, otherwise just return 0
 	 */
-	if (!ret && ipipe->waiting_writers && (flags & SPLICE_F_NONBLOCK))
+	if (!ret && atomic_read(&ipipe->waiting_writers) && (flags & SPLICE_F_NONBLOCK))
 		ret = -EAGAIN;
 
 	pipe_unlock(ipipe);

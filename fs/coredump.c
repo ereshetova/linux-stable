@@ -483,8 +483,8 @@ static void wait_for_dump_helpers(struct file *file)
 	struct pipe_inode_info *pipe = file->private_data;
 
 	pipe_lock(pipe);
-	pipe->readers++;
-	pipe->writers--;
+	atomic_inc(&pipe->readers);
+	atomic_dec(&pipe->writers);
 	wake_up_interruptible_sync(&pipe->wait);
 	kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
 	pipe_unlock(pipe);
@@ -493,11 +493,11 @@ static void wait_for_dump_helpers(struct file *file)
 	 * We actually want wait_event_freezable() but then we need
 	 * to clear TIF_SIGPENDING and improve dump_interrupted().
 	 */
-	wait_event_interruptible(pipe->wait, pipe->readers == 1);
+	wait_event_interruptible(pipe->wait, atomic_read(&pipe->readers) == 1);
 
 	pipe_lock(pipe);
-	pipe->readers--;
-	pipe->writers++;
+	atomic_dec(&pipe->readers);
+	atomic_inc(&pipe->writers);
 	pipe_unlock(pipe);
 }
 
