@@ -244,7 +244,7 @@ int slab_unmergeable(struct kmem_cache *s)
 	/*
 	 * We may have set a slab to be unmergeable during bootstrap.
 	 */
-	if (s->refcount < 0)
+	if (atomic_read(&s->refcount) < 0)
 		return 1;
 
 	return 0;
@@ -348,7 +348,7 @@ static struct kmem_cache *create_cache(const char *name,
 	if (err)
 		goto out_free_cache;
 
-	s->refcount = 1;
+	atomic_set(&s->refcount, 1);
 	list_add(&s->list, &slab_caches);
 out:
 	if (err)
@@ -718,8 +718,8 @@ void kmem_cache_destroy(struct kmem_cache *s)
 	kasan_cache_destroy(s);
 	mutex_lock(&slab_mutex);
 
-	s->refcount--;
-	if (s->refcount)
+	atomic_dec(&s->refcount);
+	if (atomic_read(&s->refcount))
 		goto out_unlock;
 
 	err = shutdown_memcg_caches(s, &release, &need_rcu_barrier);
@@ -786,7 +786,7 @@ void __init create_boot_cache(struct kmem_cache *s, const char *name, size_t siz
 		panic("Creation of kmalloc slab %s size=%zu failed. Reason %d\n",
 					name, size, err);
 
-	s->refcount = -1;	/* Exempt from merging for now */
+	atomic_set(&s->refcount, -1);	/* Exempt from merging for now */
 }
 
 struct kmem_cache *__init create_kmalloc_cache(const char *name, size_t size,
@@ -799,7 +799,7 @@ struct kmem_cache *__init create_kmalloc_cache(const char *name, size_t size,
 
 	create_boot_cache(s, name, size, flags);
 	list_add(&s->list, &slab_caches);
-	s->refcount = 1;
+	atomic_set(&s->refcount, 1);
 	return s;
 }
 

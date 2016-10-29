@@ -1919,7 +1919,7 @@ __kmem_cache_alias(const char *name, size_t size, size_t align,
 
 	cachep = find_mergeable(size, align, flags, name, ctor);
 	if (cachep) {
-		cachep->refcount++;
+		atomic_inc(&cachep->refcount);
 
 		/*
 		 * Adjust the object sizes so that we clear

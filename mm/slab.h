@@ -22,7 +22,7 @@ struct kmem_cache {
 	unsigned int align;	/* Alignment as calculated */
 	unsigned long flags;	/* Active flags on the slab */
 	const char *name;	/* Slab name for sysfs */
-	int refcount;		/* Use counter */
+	atomic_t refcount;		/* Use counter */
 	void (*ctor)(void *);	/* Called on object slot creation */
 	struct list_head list;	/* List of all slab caches on the system */
 };
