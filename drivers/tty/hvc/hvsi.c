@@ -727,7 +727,7 @@ static int hvsi_open(struct tty_struct *tty, struct file *filp)
 
 	tty_port_tty_set(&hp->port, tty);
 	spin_lock_irqsave(&hp->lock, flags);
-	hp->port.count++;
+	atomic_inc(&hp->port.count);
 	atomic_set(&hp->seqno, 0);
 	h_vio_signal(hp->vtermno, VIO_IRQ_ENABLE);
 	spin_unlock_irqrestore(&hp->lock, flags);
@@ -784,7 +784,7 @@ static void hvsi_close(struct tty_struct *tty, struct file *filp)
 
 	spin_lock_irqsave(&hp->lock, flags);
 
-	if (--hp->port.count == 0) {
+	if (atomic_dec_and_return(&hp->port.count) == 0) {
 		tty_port_tty_set(&hp->port, NULL);
 		hp->inbuf_end = hp->inbuf; /* discard remaining partial packets */
 
@@ -817,9 +817,9 @@ static void hvsi_close(struct tty_struct *tty, struct file *filp)
 
 			spin_lock_irqsave(&hp->lock, flags);
 		}
-	} else if (hp->port.count < 0)
+	} else if (atomic_read(&hp->port.count) < 0)
 		printk(KERN_ERR "hvsi_close %lu: oops, count is %d\n",
-		       hp - hvsi_ports, hp->port.count);
+		       hp - hvsi_ports, atomic_read(&hp->port.count));
 
 	spin_unlock_irqrestore(&hp->lock, flags);
 }
@@ -834,7 +834,7 @@ static void hvsi_hangup(struct tty_struct *tty)
 	tty_port_tty_set(&hp->port, NULL);
 
 	spin_lock_irqsave(&hp->lock, flags);
-	hp->port.count = 0;
+	atomic_sec(&hp->port.count, 0);
 	hp->n_outbuf = 0;
 	spin_unlock_irqrestore(&hp->lock, flags);
 }

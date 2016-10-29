@@ -2943,7 +2943,7 @@ static int gsmtty_open(struct tty_struct *tty, struct file *filp)
 	struct gsm_dlci *dlci = tty->driver_data;
 	struct tty_port *port = &dlci->port;
 
-	port->count++;
+	atomic_inc(&port->count);
 	tty_port_tty_set(port, tty);
 
 	dlci->modem_rx = 0;

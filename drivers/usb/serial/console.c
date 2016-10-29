@@ -126,7 +126,7 @@ static int usb_console_setup(struct console *co, char *options)
 
 	info->port = port;
 
-	++port->port.count;
+	atomic_inc(&port->port.count);
 	if (!tty_port_initialized(&port->port)) {
 		if (serial->type->set_termios) {
 			/*
@@ -172,7 +172,7 @@ static int usb_console_setup(struct console *co, char *options)
 	}
 	/* Now that any required fake tty operations are completed restore
 	 * the tty port count */
-	--port->port.count;
+	atomic_dec(&port->port.count);
 	/* The console is special in terms of closing the device so
 	 * indicate this port is now acting as a system console. */
 	port->port.console = 1;
@@ -184,7 +184,7 @@ static int usb_console_setup(struct console *co, char *options)
 	tty_port_tty_set(&port->port, NULL);
 	tty_kref_put(tty);
  reset_open_count:
-	port->port.count = 0;
+	atomic_set(&port->port.count, 0);
 	usb_autopm_put_interface(serial->interface);
  error_get_interface:
 	usb_serial_put(serial);
