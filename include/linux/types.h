@@ -185,6 +185,10 @@ typedef struct {
 } atomic64_t;
 #endif
 
+typedef struct {
+	atomic_t counter;
+} stats_t;
+
 struct list_head {
 	struct list_head *next, *prev;
 };
