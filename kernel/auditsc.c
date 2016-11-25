@@ -1954,7 +1954,7 @@ int auditsc_get_stamp(struct audit_context *ctx,
 }
 
 /* global counter which is incremented every time something logs in */
-static atomic_wrap_t session_id = ATOMIC_INIT(0);
+static stats_t session_id = STATS_INIT(0);
 
 static int audit_set_loginuid_perm(kuid_t loginuid)
 {

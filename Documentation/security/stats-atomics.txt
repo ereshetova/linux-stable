@@ -1,0 +1,58 @@
+struct blk_trace.dropped
+include/linux/blktrace_api.h
+Description: Part of blktrace tracing subsystem, counter of number of I/O
+             events that have been dropped
+Standard API: Yes
+stats_t: Yes
+
+
+struct irq_desc.threads_handled
+include/linux/irqdesc.h
+Description: (from source) "stats field for deferred spurious detection
+                            of treaded handlers"
+Standard API: Yes
+stats_t: Yes
+
+
+atomic_wrap_t kgdb_cpu_doing_single_step
+kernel/debug/debug_core.c
+Description: (from source) "to keep track of the CPU which is doing the
+							single stepping"
+Standard API: Yes
+stats_t: No
+
+
+struct parallel_data.seq_nr
+include/linux/padata.h
+Description: (from source) "Maximal used sequence number"
+		     Cannot wrap, because seq_nr is used to determine hash bucket:
+			 kernel/padata.c: 
+				static int padata_cpu_hash(struct parallel_data *pd) {
+					...
+					seq_nr = atomic_inc_return_wrap(&pd->seq_nr);
+					cpu_index = seq_nr % cpumask_weight(pd->cpumask.pcpu);
+					...
+				}
+Standard API: No
+	kernel/padata.c:
+		seq_nr = atomic_inc_return_wrap(&pd->seq_nr);
+stats_t: No
+
+
+struct task_struct.trace_overrun
+include/linux/sched.h
+Description: (from source) "Number of functions that haven't been traced
+							because of depth overrun"
+
+Standard API: Yes
+stats_t: Yes
+
+
+atomic_wrap_t audit_lost
+kernel/audit.c
+Description: Number of lost kernel audit messages
+Standard API: Yes
+stats_t: Yes
+
+
+

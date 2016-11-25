@@ -24,7 +24,7 @@ struct header_iter {
 static struct trace_array *mmio_trace_array;
 static bool overrun_detected;
 static unsigned long prev_overruns;
-static atomic_wrap_t dropped_count;
+static stats_t dropped_count;
 
 static void mmio_reset_data(struct trace_array *tr)
 {
@@ -303,7 +303,7 @@ static void __trace_mmiotrace_rw(struct trace_array *tr,
 	event = trace_buffer_lock_reserve(buffer, TRACE_MMIO_RW,
 					  sizeof(*entry), 0, pc);
 	if (!event) {
-		atomic_inc_wrap(&dropped_count);
+		stats_inc(&dropped_count);
 		return;
 	}
 	entry	= ring_buffer_event_data(event);
@@ -333,7 +333,7 @@ static void __trace_mmiotrace_map(struct trace_array *tr,
 	event = trace_buffer_lock_reserve(buffer, TRACE_MMIO_MAP,
 					  sizeof(*entry), 0, pc);
 	if (!event) {
-		atomic_inc_wrap(&dropped_count);
+		stats_inc(&dropped_count);
 		return;
 	}
 	entry	= ring_buffer_event_data(event);

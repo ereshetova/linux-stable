@@ -326,7 +326,7 @@ static void rcu_momentary_dyntick_idle(void)
 		 */
 		rdtp = this_cpu_ptr(&rcu_dynticks);
 		smp_mb__before_atomic(); /* Earlier stuff before QS. */
-		atomic_add_wrap(2, &rdtp->dynticks);  /* QS. */
+		stats_add(2, &rdtp->dynticks);  /* QS. */
 		smp_mb__after_atomic(); /* Later stuff after QS. */
 		break;
 	}
@@ -691,10 +691,10 @@ static void rcu_eqs_enter_common(long long oldval, bool user)
 	rcu_prepare_for_idle();
 	/* CPUs seeing atomic_inc() must see prior RCU read-side crit sects */
 	smp_mb__before_atomic();  /* See above. */
-	atomic_inc_wrap(&rdtp->dynticks);
+	stats_inc(&rdtp->dynticks);
 	smp_mb__after_atomic();  /* Force ordering with next sojourn. */
 	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
-		     atomic_read_wrap(&rdtp->dynticks) & 0x1);
+		     stats_read(&rdtp->dynticks) & 0x1);
 	rcu_dynticks_task_enter();
 
 	/*
@@ -827,11 +827,11 @@ static void rcu_eqs_exit_common(long long oldval, int user)
 
 	rcu_dynticks_task_exit();
 	smp_mb__before_atomic();  /* Force ordering w/previous sojourn. */
-	atomic_inc_wrap(&rdtp->dynticks);
+	stats_inc(&rdtp->dynticks);
 	/* CPUs seeing atomic_inc() must see later RCU read-side crit sects */
 	smp_mb__after_atomic();  /* See above. */
 	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
-		     !(atomic_read_wrap(&rdtp->dynticks) & 0x1));
+		     !(stats_read(&rdtp->dynticks) & 0x1));
 	rcu_cleanup_after_idle();
 	trace_rcu_dyntick(TPS("End"), oldval, rdtp->dynticks_nesting);
 	if (IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
@@ -977,12 +977,12 @@ void rcu_nmi_enter(void)
 	 * to be in the outermost NMI handler that interrupted an RCU-idle
 	 * period (observation due to Andy Lutomirski).
 	 */
-	if (!(atomic_read_wrap(&rdtp->dynticks) & 0x1)) {
+	if (!(stats_read(&rdtp->dynticks) & 0x1)) {
 		smp_mb__before_atomic();  /* Force delay from prior write. */
-		atomic_inc_wrap(&rdtp->dynticks);
+		stats_inc(&rdtp->dynticks);
 		/* atomic_inc() before later RCU read-side crit sects */
 		smp_mb__after_atomic();  /* See above. */
-		WARN_ON_ONCE(!(atomic_read_wrap(&rdtp->dynticks) & 0x1));
+		WARN_ON_ONCE(!(stats_read(&rdtp->dynticks) & 0x1));
 		incby = 1;
 	}
 	rdtp->dynticks_nmi_nesting += incby;
@@ -1007,7 +1007,7 @@ void rcu_nmi_exit(void)
 	 * to us!)
 	 */
 	WARN_ON_ONCE(rdtp->dynticks_nmi_nesting <= 0);
-	WARN_ON_ONCE(!(atomic_read_wrap(&rdtp->dynticks) & 0x1));
+	WARN_ON_ONCE(!(stats_read(&rdtp->dynticks) & 0x1));
 
 	/*
 	 * If the nesting level is not 1, the CPU wasn't RCU-idle, so
@@ -1022,9 +1022,9 @@ void rcu_nmi_exit(void)
 	rdtp->dynticks_nmi_nesting = 0;
 	/* CPUs seeing atomic_inc() must see prior RCU read-side crit sects */
 	smp_mb__before_atomic();  /* See above. */
-	atomic_inc_wrap(&rdtp->dynticks);
+	stats_inc(&rdtp->dynticks);
 	smp_mb__after_atomic();  /* Force delay to next write. */
-	WARN_ON_ONCE(atomic_read_wrap(&rdtp->dynticks) & 0x1);
+	WARN_ON_ONCE(stats_read(&rdtp->dynticks) & 0x1);
 }
 
 /**
@@ -1037,7 +1037,7 @@ void rcu_nmi_exit(void)
  */
 bool notrace __rcu_is_watching(void)
 {
-	return atomic_read_wrap(this_cpu_ptr(&rcu_dynticks.dynticks)) & 0x1;
+	return stats_read(this_cpu_ptr(&rcu_dynticks.dynticks)) & 0x1;
 }
 
 /**
@@ -3752,7 +3752,7 @@ rcu_boot_init_percpu_data(int cpu, struct rcu_state *rsp)
 	rdp->grpmask = leaf_node_cpu_bit(rdp->mynode, cpu);
 	rdp->dynticks = &per_cpu(rcu_dynticks, cpu);
 	WARN_ON_ONCE(rdp->dynticks->dynticks_nesting != DYNTICK_TASK_EXIT_IDLE);
-	WARN_ON_ONCE(atomic_read_wrap(&rdp->dynticks->dynticks) != 1);
+	WARN_ON_ONCE(stats_read(&rdp->dynticks->dynticks) != 1);
 	rdp->cpu = cpu;
 	rdp->rsp = rsp;
 	rcu_boot_init_nocb_percpu_data(rdp);
@@ -3782,8 +3782,8 @@ rcu_init_percpu_data(int cpu, struct rcu_state *rsp)
 		init_callback_list(rdp);  /* Re-enable callbacks on this CPU. */
 	rdp->dynticks->dynticks_nesting = DYNTICK_TASK_EXIT_IDLE;
 	rcu_sysidle_init_percpu_data(rdp->dynticks);
-	atomic_set_wrap(&rdp->dynticks->dynticks,
-		   (atomic_read_wrap(&rdp->dynticks->dynticks) & ~0x1) + 1);
+	stats_set(&rdp->dynticks->dynticks,
+		   (stats_read(&rdp->dynticks->dynticks) & ~0x1) + 1);
 	raw_spin_unlock_rcu_node(rnp);		/* irqs remain disabled. */
 
 	/*

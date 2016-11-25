@@ -37,7 +37,7 @@ struct profile_hit {
 #define NR_PROFILE_HIT		(PAGE_SIZE/sizeof(struct profile_hit))
 #define NR_PROFILE_GRP		(NR_PROFILE_HIT/PROFILE_GRPSZ)
 
-static atomic_wrap_t *prof_buffer;
+static stats_t *prof_buffer;
 static unsigned long prof_len, prof_shift;
 
 int prof_on __read_mostly;
@@ -257,7 +257,7 @@ static void profile_flip_buffers(void)
 					hits[i].pc = 0;
 				continue;
 			}
-			atomic_add_wrap(hits[i].hits, &prof_buffer[hits[i].pc]);
+			stats_add(hits[i].hits, &prof_buffer[hits[i].pc]);
 			hits[i].hits = hits[i].pc = 0;
 		}
 	}
@@ -318,9 +318,9 @@ static void do_profile_hits(int type, void *__pc, unsigned int nr_hits)
 	 * Add the current hit(s) and flush the write-queue out
 	 * to the global buffer:
 	 */
-	atomic_add_wrap(nr_hits, &prof_buffer[pc]);
+	stats_add(nr_hits, &prof_buffer[pc]);
 	for (i = 0; i < NR_PROFILE_HIT; ++i) {
-		atomic_add_wrap(hits[i].hits, &prof_buffer[hits[i].pc]);
+		stats_add(hits[i].hits, &prof_buffer[hits[i].pc]);
 		hits[i].pc = hits[i].hits = 0;
 	}
 out:
@@ -384,7 +384,7 @@ static void do_profile_hits(int type, void *__pc, unsigned int nr_hits)
 {
 	unsigned long pc;
 	pc = ((unsigned long)__pc - (unsigned long)_stext) >> prof_shift;
-	atomic_add_wrap(nr_hits, &prof_buffer[min(pc, prof_len - 1)]);
+	stats_add(nr_hits, &prof_buffer[min(pc, prof_len - 1)]);
 }
 #endif /* !CONFIG_SMP */
 

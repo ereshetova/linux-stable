@@ -124,7 +124,7 @@ static void print_one_rcu_data(struct seq_file *m, struct rcu_data *rdp)
 		   rdp->rcu_qs_ctr_snap == per_cpu(rcu_qs_ctr, rdp->cpu),
 		   rdp->core_needs_qs);
 	seq_printf(m, " dt=%d/%llx/%d df=%lu",
-		   atomic_read_wrap(&rdp->dynticks->dynticks),
+		   stats_read(&rdp->dynticks->dynticks),
 		   rdp->dynticks->dynticks_nesting,
 		   rdp->dynticks->dynticks_nmi_nesting,
 		   rdp->dynticks_fqs);
@@ -197,7 +197,7 @@ static int show_rcuexp(struct seq_file *m, void *v)
 	seq_printf(m, "s=%lu wd0=%lu wd1=%lu wd2=%lu wd3=%lu n=%lu enq=%d sc=%lu\n",
 		   rsp->expedited_sequence, s0, s1, s2, s3,
 		   atomic_long_read_wrap(&rsp->expedited_normal),
-		   atomic_read_wrap(&rsp->expedited_need_qs),
+		   stats_read(&rsp->expedited_need_qs),
 		   rsp->expedited_sequence / 2);
 	return 0;
 }
