@@ -56,10 +56,10 @@ struct kmem_cache {
 	unsigned long node_allocs;
 	unsigned long node_frees;
 	unsigned long node_overflow;
-	atomic_wrap_t allochit;
-	atomic_wrap_t allocmiss;
-	atomic_wrap_t freehit;
-	atomic_wrap_t freemiss;
+	stats_t allochit;
+	stats_t allocmiss;
+	stats_t freehit;
+	stats_t freemiss;
 #ifdef CONFIG_DEBUG_SLAB_LEAK
 	atomic_t store_user_clean;
 #endif
