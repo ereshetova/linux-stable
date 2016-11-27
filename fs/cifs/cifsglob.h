@@ -859,35 +859,35 @@ struct cifs_tcon {
 	__u16 Flags;		/* optional support bits */
 	enum statusEnum tidStatus;
 #ifdef CONFIG_CIFS_STATS
-	atomic_wrap_t num_smbs_sent;
+	stats_t num_smbs_sent;
 	union {
 		struct {
-			atomic_wrap_t num_writes;
-			atomic_wrap_t num_reads;
-			atomic_wrap_t num_flushes;
-			atomic_wrap_t num_oplock_brks;
-			atomic_wrap_t num_opens;
-			atomic_wrap_t num_closes;
-			atomic_wrap_t num_deletes;
-			atomic_wrap_t num_mkdirs;
-			atomic_wrap_t num_posixopens;
-			atomic_wrap_t num_posixmkdirs;
-			atomic_wrap_t num_rmdirs;
-			atomic_wrap_t num_renames;
-			atomic_wrap_t num_t2renames;
-			atomic_wrap_t num_ffirst;
-			atomic_wrap_t num_fnext;
-			atomic_wrap_t num_fclose;
-			atomic_wrap_t num_hardlinks;
-			atomic_wrap_t num_symlinks;
-			atomic_wrap_t num_locks;
-			atomic_wrap_t num_acl_get;
-			atomic_wrap_t num_acl_set;
+			stats_t num_writes;
+			stats_t num_reads;
+			stats_t num_flushes;
+			stats_t num_oplock_brks;
+			stats_t num_opens;
+			stats_t num_closes;
+			stats_t num_deletes;
+			stats_t num_mkdirs;
+			stats_t num_posixopens;
+			stats_t num_posixmkdirs;
+			stats_t num_rmdirs;
+			stats_t num_renames;
+			stats_t num_t2renames;
+			stats_t num_ffirst;
+			stats_t num_fnext;
+			stats_t num_fclose;
+			stats_t num_hardlinks;
+			stats_t num_symlinks;
+			stats_t num_locks;
+			stats_t num_acl_get;
+			stats_t num_acl_set;
 		} cifs_stats;
 #ifdef CONFIG_CIFS_SMB2
 		struct {
-			atomic_wrap_t smb2_com_sent[NUMBER_OF_SMB2_COMMANDS];
-			atomic_wrap_t smb2_com_failed[NUMBER_OF_SMB2_COMMANDS];
+			stats_t smb2_com_sent[NUMBER_OF_SMB2_COMMANDS];
+			stats_t smb2_com_failed[NUMBER_OF_SMB2_COMMANDS];
 		} smb2_stats;
 #endif /* CONFIG_CIFS_SMB2 */
 	} stats;
@@ -1241,7 +1241,7 @@ convert_delimiter(char *path, char delim)
 }
 
 #ifdef CONFIG_CIFS_STATS
-#define cifs_stats_inc atomic_inc_wrap
+#define cifs_stats_inc stats_inc
 
 static inline void cifs_stats_bytes_written(struct cifs_tcon *tcon,
 					    unsigned int bytes)
@@ -1604,9 +1604,9 @@ GLOBAL_EXTERN atomic_t tconInfoReconnectCount;
 /* Various Debug counters */
 GLOBAL_EXTERN atomic_t bufAllocCount;    /* current number allocated  */
 #ifdef CONFIG_CIFS_STATS2
-GLOBAL_EXTERN atomic_wrap_t totBufAllocCount;
+GLOBAL_EXTERN stats_t totBufAllocCount;
 					/* total allocated over all time */
-GLOBAL_EXTERN atomic_wrap_t totSmBufAllocCount;
+GLOBAL_EXTERN stats_t totSmBufAllocCount;
 #endif
 GLOBAL_EXTERN atomic_t smBufAllocCount;
 GLOBAL_EXTERN atomic_t midCount;

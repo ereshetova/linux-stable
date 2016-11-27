@@ -1394,7 +1394,7 @@ void btrfs_assert_delayed_root_empty(struct btrfs_root *root)
 
 static int could_end_wait(struct btrfs_delayed_root *delayed_root, int seq)
 {
-	int val = atomic_read_wrap(&delayed_root->items_seq);
+	int val = stats_read(&delayed_root->items_seq);
 
 	if (val < seq || val >= seq + BTRFS_DELAYED_BATCH)
 		return 1;
@@ -1419,7 +1419,7 @@ void btrfs_balance_delayed_items(struct btrfs_root *root)
 		int seq;
 		int ret;
 
-		seq = atomic_read_wrap(&delayed_root->items_seq);
+		seq = stats_read(&delayed_root->items_seq);
 
 		ret = btrfs_wq_run_delayed_node(delayed_root, fs_info, 0);
 		if (ret)

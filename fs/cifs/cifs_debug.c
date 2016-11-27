@@ -265,8 +265,8 @@ static ssize_t cifs_stats_proc_write(struct file *file,
 	rc = kstrtobool_from_user(buffer, count, &bv);
 	if (rc == 0) {
 #ifdef CONFIG_CIFS_STATS2
-		atomic_set_wrap(&totBufAllocCount, 0);
-		atomic_set_wrap(&totSmBufAllocCount, 0);
+		stats_set(&totBufAllocCount, 0);
+		stats_set(&totSmBufAllocCount, 0);
 #endif /* CONFIG_CIFS_STATS2 */
 		spin_lock(&cifs_tcp_ses_lock);
 		list_for_each(tmp1, &cifs_tcp_ses_list) {
@@ -279,7 +279,7 @@ static ssize_t cifs_stats_proc_write(struct file *file,
 					tcon = list_entry(tmp3,
 							  struct cifs_tcon,
 							  tcon_list);
-					atomic_set_wrap(&tcon->num_smbs_sent,
+					stats_set(&tcon->num_smbs_sent,
 							0);
 					if (server->ops->clear_stats)
 						server->ops->clear_stats(tcon);
@@ -314,8 +314,8 @@ static int cifs_stats_proc_show(struct seq_file *m, void *v)
 			smBufAllocCount.counter, cifs_min_small);
 #ifdef CONFIG_CIFS_STATS2
 	seq_printf(m, "Total Large %d Small %d Allocations\n",
-				atomic_read_wrap(&totBufAllocCount),
-				atomic_read_wrap(&totSmBufAllocCount));
+				stats_read(&totBufAllocCount),
+				stats_read(&totSmBufAllocCount));
 #endif /* CONFIG_CIFS_STATS2 */
 
 	seq_printf(m, "Operations (MIDs): %d\n", atomic_read(&midCount));
@@ -344,7 +344,7 @@ static int cifs_stats_proc_show(struct seq_file *m, void *v)
 				if (tcon->need_reconnect)
 					seq_puts(m, "\tDISCONNECTED ");
 				seq_printf(m, "\nSMBs: %d",
-					   atomic_read_wrap(&tcon->
+					   stats_read(&tcon->
 						   num_smbs_sent));
 				if (server->ops->print_stats)
 					server->ops->print_stats(m, tcon);

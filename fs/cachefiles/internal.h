@@ -65,8 +65,8 @@ struct cachefiles_cache {
 	wait_queue_head_t		daemon_pollwq;	/* poll waitqueue for daemon */
 	struct rb_root			active_nodes;	/* active nodes (can't be culled) */
 	rwlock_t			active_lock;	/* lock for active_nodes */
-	atomic_wrap_t			gravecounter;	/* graveyard uniquifier */
-	atomic_wrap_t			f_released;	/* number of objects released lately */
+	stats_t				gravecounter;	/* graveyard uniquifier */
+	stats_t				f_released;	/* number of objects released lately */
 	atomic_long_wrap_t		b_released;	/* number of blocks released lately */
 	unsigned			frun_percent;	/* when to stop culling (% files) */
 	unsigned			fcull_percent;	/* when to start culling (% files) */
@@ -182,19 +182,19 @@ extern int cachefiles_check_in_use(struct cachefiles_cache *cache,
  * proc.c
  */
 #ifdef CONFIG_CACHEFILES_HISTOGRAM
-extern atomic_wrap_t cachefiles_lookup_histogram[HZ];
-extern atomic_wrap_t cachefiles_mkdir_histogram[HZ];
-extern atomic_wrap_t cachefiles_create_histogram[HZ];
+extern stats_t cachefiles_lookup_histogram[HZ];
+extern stats_t cachefiles_mkdir_histogram[HZ];
+extern stats_t cachefiles_create_histogram[HZ];
 
 extern int __init cachefiles_proc_init(void);
 extern void cachefiles_proc_cleanup(void);
 static inline
-void cachefiles_hist(atomic_wrap_t histogram[], unsigned long start_jif)
+void cachefiles_hist(stats_t histogram[], unsigned long start_jif)
 {
 	unsigned long jif = jiffies - start_jif;
 	if (jif >= HZ)
 		jif = HZ - 1;
-	atomic_inc_wrap(&histogram[jif]);
+	stats_inc(&histogram[jif]);
 }
 
 #else
