@@ -220,7 +220,7 @@ struct pts_fs_info *devpts_acquire(struct file *filp)
 	 * pty code needs to hold extra references in case of last /dev/tty close
 	 */
 	sb = path.mnt->mnt_sb;
-	atomic_inc(&sb->s_active);
+	refcount_inc(&sb->s_active);
 	result = DEVPTS_SB(sb);
 
 out:

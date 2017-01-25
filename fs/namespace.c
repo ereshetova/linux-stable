@@ -1054,7 +1054,7 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
 	mnt->mnt.mnt_flags = old->mnt.mnt_flags;
 	mnt->mnt.mnt_flags &= ~(MNT_WRITE_HOLD|MNT_MARKED|MNT_INTERNAL);
 
-	atomic_inc(&sb->s_active);
+	refcount_inc(&sb->s_active);
 	mnt->mnt.mnt_sb = sb;
 	mnt->mnt.mnt_root = dget(root);
 	mnt->mnt_mountpoint = mnt->mnt.mnt_root;
@@ -3374,7 +3374,7 @@ struct dentry *mount_subtree(struct vfsmount *m, const char *name)
 
 	/* trade a vfsmount reference for active sb one */
 	s = path.mnt->mnt_sb;
-	atomic_inc(&s->s_active);
+	refcount_inc(&s->s_active);
 	mntput(path.mnt);
 	/* lock the sucker */
 	down_write(&s->s_umount);

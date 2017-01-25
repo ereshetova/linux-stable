@@ -159,10 +159,10 @@ bool nfs_sb_active(struct super_block *sb)
 {
 	struct nfs_server *server = NFS_SB(sb);
 
-	if (!atomic_inc_not_zero(&sb->s_active))
+	if (!refcount_inc_not_zero(&sb->s_active))
 		return false;
 	if (atomic_inc_return(&server->active) != 1)
-		atomic_dec(&sb->s_active);
+		refcount_dec(&sb->s_active);
 	return true;
 }
 EXPORT_SYMBOL_GPL(nfs_sb_active);

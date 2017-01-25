@@ -135,7 +135,7 @@ cifs_sb_active(struct super_block *sb)
 	struct cifs_sb_info *server = CIFS_SB(sb);
 
 	if (atomic_inc_return(&server->active) == 1)
-		atomic_inc(&sb->s_active);
+		refcount_inc(&sb->s_active);
 }
 
 void

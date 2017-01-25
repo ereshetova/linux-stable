@@ -39,6 +39,7 @@
 #include <linux/fs_types.h>
 #include <linux/build_bug.h>
 #include <linux/stddef.h>
+#include <linux/refcount.h>
 
 #include <asm/byteorder.h>
 #include <uapi/linux/fs.h>
@@ -1450,7 +1451,7 @@ struct super_block {
 	struct dentry		*s_root;
 	struct rw_semaphore	s_umount;
 	int			s_count;
-	atomic_t		s_active;
+	refcount_t		s_active;
 #ifdef CONFIG_SECURITY
 	void                    *s_security;
 #endif

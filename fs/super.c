@@ -251,7 +251,7 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags,
 	spin_lock_init(&s->s_inode_wblist_lock);
 
 	s->s_count = 1;
-	atomic_set(&s->s_active, 1);
+	refcount_set(&s->s_active, 1);
 	mutex_init(&s->s_vfs_rename_mutex);
 	lockdep_set_class(&s->s_vfs_rename_mutex, &type->s_vfs_rename_key);
 	init_rwsem(&s->s_dquot.dqio_sem);
@@ -329,7 +329,7 @@ static void put_super(struct super_block *sb)
 void deactivate_locked_super(struct super_block *s)
 {
 	struct file_system_type *fs = s->s_type;
-	if (atomic_dec_and_test(&s->s_active)) {
+	if (refcount_dec_and_test(&s->s_active)) {
 		cleancache_invalidate_fs(s);
 		unregister_shrinker(&s->s_shrink);
 		fs->kill_sb(s);
@@ -361,7 +361,7 @@ EXPORT_SYMBOL(deactivate_locked_super);
  */
 void deactivate_super(struct super_block *s)
 {
-	if (!atomic_add_unless(&s->s_active, -1, 1)) {
+	if (!refcount_dec_not_one(&s->s_active)) {
 		down_write(&s->s_umount);
 		deactivate_locked_super(s);
 	}
@@ -387,7 +387,7 @@ static int grab_super(struct super_block *s) __releases(sb_lock)
 	s->s_count++;
 	spin_unlock(&sb_lock);
 	down_write(&s->s_umount);
-	if ((s->s_flags & SB_BORN) && atomic_inc_not_zero(&s->s_active)) {
+	if ((s->s_flags & SB_BORN) && refcount_inc_not_zero(&s->s_active)) {
 		put_super(s);
 		return 1;
 	}
@@ -1759,7 +1759,7 @@ int freeze_super(struct super_block *sb)
 {
 	int ret;
 
-	atomic_inc(&sb->s_active);
+	refcount_inc(&sb->s_active);
 	down_write(&sb->s_umount);
 	if (sb->s_writers.frozen != SB_UNFROZEN) {
 		deactivate_locked_super(sb);

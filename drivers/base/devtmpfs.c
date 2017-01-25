@@ -58,7 +58,7 @@ static struct dentry *public_dev_mount(struct file_system_type *fs_type, int fla
 		      const char *dev_name, void *data)
 {
 	struct super_block *s = mnt->mnt_sb;
-	atomic_inc(&s->s_active);
+	refcount_inc(&s->s_active);
 	down_write(&s->s_umount);
 	return dget(s->s_root);
 }

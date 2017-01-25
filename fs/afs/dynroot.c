@@ -284,7 +284,7 @@ int afs_dynroot_mkdir(struct afs_net *net, struct afs_cell *cell)
 	struct dentry *root, *subdir;
 	int ret;
 
-	if (!sb || atomic_read(&sb->s_active) == 0)
+	if (!sb || refcount_read(&sb->s_active) == 0)
 		return 0;
 
 	/* Let the ->lookup op do the creation */
@@ -313,7 +313,7 @@ void afs_dynroot_rmdir(struct afs_net *net, struct afs_cell *cell)
 	struct super_block *sb = net->dynroot_sb;
 	struct dentry *root, *subdir;
 
-	if (!sb || atomic_read(&sb->s_active) == 0)
+	if (!sb || refcount_read(&sb->s_active) == 0)
 		return;
 
 	root = sb->s_root;

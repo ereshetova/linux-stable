@@ -130,7 +130,7 @@ void proc_invalidate_siblings_dcache(struct hlist_head *inodes, spinlock_t *lock
 
 		inode = &ei->vfs_inode;
 		sb = inode->i_sb;
-		if ((sb != old_sb) && !atomic_inc_not_zero(&sb->s_active))
+		if ((sb != old_sb) && !refcount_inc_not_zero(&sb->s_active))
 			continue;
 		inode = igrab(inode);
 		rcu_read_unlock();
