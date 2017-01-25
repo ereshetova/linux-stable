@@ -232,7 +232,7 @@ typedef struct xlog_in_core {
 	struct xfs_log_callback	**ic_callback_tail;
 
 	/* reference counts need their own cacheline */
-	atomic_t		ic_refcnt ____cacheline_aligned_in_smp;
+	refcount_t		ic_refcnt ____cacheline_aligned_in_smp;
 	xlog_in_core_2_t	*ic_data;
 #define ic_header	ic_data->hic_header
 } xlog_in_core_t;

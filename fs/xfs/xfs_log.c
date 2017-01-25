@@ -859,7 +859,7 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 
 		spin_lock(&log->l_icloglock);
 		iclog = log->l_iclog;
-		atomic_inc(&iclog->ic_refcnt);
+		refcount_inc(&iclog->ic_refcnt);
 		xlog_state_want_sync(log, iclog);
 		spin_unlock(&log->l_icloglock);
 		error = xlog_state_release_iclog(log, iclog);
@@ -897,7 +897,7 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 		 */
 		spin_lock(&log->l_icloglock);
 		iclog = log->l_iclog;
-		atomic_inc(&iclog->ic_refcnt);
+		refcount_inc(&iclog->ic_refcnt);
 
 		xlog_state_want_sync(log, iclog);
 		spin_unlock(&log->l_icloglock);
@@ -1483,7 +1483,7 @@ xlog_alloc_log(
 		iclog->ic_size = BBTOB(bp->b_length) - log->l_iclog_hsize;
 		iclog->ic_state = XLOG_STATE_ACTIVE;
 		iclog->ic_log = log;
-		atomic_set(&iclog->ic_refcnt, 0);
+		refcount_set(&iclog->ic_refcnt, 0);
 		spin_lock_init(&iclog->ic_callback_lock);
 		iclog->ic_callback_tail = &(iclog->ic_callback);
 		iclog->ic_datap = (char *)iclog->ic_data + log->l_iclog_hsize;
@@ -1773,7 +1773,7 @@ xlog_sync(
 	int		size;
 
 	XFS_STATS_INC(log->l_mp, xs_log_writes);
-	ASSERT(atomic_read(&iclog->ic_refcnt) == 0);
+	ASSERT(refcount_read(&iclog->ic_refcnt) == 0);
 
 	/* Add for LR header */
 	count_init = log->l_iclog_hsize + iclog->ic_offset;
@@ -2826,7 +2826,7 @@ xlog_state_done_syncing(
 
 	ASSERT(iclog->ic_state == XLOG_STATE_SYNCING ||
 	       iclog->ic_state == XLOG_STATE_IOERROR);
-	ASSERT(atomic_read(&iclog->ic_refcnt) == 0);
+	ASSERT(refcount_read(&iclog->ic_refcnt) == 0);
 	ASSERT(iclog->ic_bwritecnt == 1 || iclog->ic_bwritecnt == 2);
 
 
@@ -2905,7 +2905,7 @@ restart:
 
 	head = &iclog->ic_header;
 
-	atomic_inc(&iclog->ic_refcnt);	/* prevents sync */
+	refcount_inc(&iclog->ic_refcnt);	/* prevents sync */
 	log_offset = iclog->ic_offset;
 
 	/* On the 1st write to an iclog, figure out lsn.  This works
@@ -2943,7 +2943,8 @@ restart:
 		 * xlog_state_release_iclog() when there is more than one
 		 * reference to the iclog.
 		 */
-		if (!atomic_add_unless(&iclog->ic_refcnt, -1, 1)) {
+
+		if (!refcount_dec_not_one(&iclog->ic_refcnt)) {
 			/* we are the only one */
 			spin_unlock(&log->l_icloglock);
 			error = xlog_state_release_iclog(log, iclog);
@@ -3081,8 +3082,8 @@ xlog_state_release_iclog(
 	if (iclog->ic_state & XLOG_STATE_IOERROR)
 		return -EIO;
 
-	ASSERT(atomic_read(&iclog->ic_refcnt) > 0);
-	if (!atomic_dec_and_lock(&iclog->ic_refcnt, &log->l_icloglock))
+	ASSERT(refcount_read(&iclog->ic_refcnt) > 0);
+	if (!refcount_dec_and_lock(&iclog->ic_refcnt, &log->l_icloglock))
 		return 0;
 
 	if (iclog->ic_state & XLOG_STATE_IOERROR) {
@@ -3228,7 +3229,7 @@ _xfs_log_force(
 		 * previous iclog and go to sleep.
 		 */
 		if (iclog->ic_state == XLOG_STATE_DIRTY ||
-		    (atomic_read(&iclog->ic_refcnt) == 0
+		    (refcount_read(&iclog->ic_refcnt) == 0
 		     && iclog->ic_offset == 0)) {
 			iclog = iclog->ic_prev;
 			if (iclog->ic_state == XLOG_STATE_ACTIVE ||
@@ -3237,14 +3238,14 @@ _xfs_log_force(
 			else
 				goto maybe_sleep;
 		} else {
-			if (atomic_read(&iclog->ic_refcnt) == 0) {
+			if (refcount_read(&iclog->ic_refcnt) == 0) {
 				/* We are the only one with access to this
 				 * iclog.  Flush it out now.  There should
 				 * be a roundoff of zero to show that someone
 				 * has already taken care of the roundoff from
 				 * the previous sync.
 				 */
-				atomic_inc(&iclog->ic_refcnt);
+				refcount_inc(&iclog->ic_refcnt);
 				lsn = be64_to_cpu(iclog->ic_header.h_lsn);
 				xlog_state_switch_iclogs(log, iclog, 0);
 				spin_unlock(&log->l_icloglock);
@@ -3407,7 +3408,7 @@ try_again:
 				already_slept = 1;
 				goto try_again;
 			}
-			atomic_inc(&iclog->ic_refcnt);
+			refcount_inc(&iclog->ic_refcnt);
 			xlog_state_switch_iclogs(log, iclog, 0);
 			spin_unlock(&log->l_icloglock);
 			if (xlog_state_release_iclog(log, iclog))
