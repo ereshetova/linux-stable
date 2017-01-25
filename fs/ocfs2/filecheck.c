@@ -26,6 +26,7 @@
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
 #include <linux/sysctl.h>
+#include <linux/refcount.h>
 #include <cluster/masklog.h>
 
 #include "ocfs2.h"
@@ -66,7 +67,7 @@ struct ocfs2_filecheck {
 
 struct ocfs2_filecheck_sysfs_entry {	/* sysfs entry per mounting */
 	struct list_head fs_list;
-	atomic_t fs_count;
+	refcount_t fs_count;
 	struct super_block *fs_sb;
 	struct kset *fs_devicekset;
 	struct kset *fs_fcheckkset;
@@ -140,8 +141,10 @@ ocfs2_filecheck_sysfs_free(struct ocfs2_filecheck_sysfs_entry *entry)
 {
 	struct ocfs2_filecheck_entry *p;
 
-	if (!atomic_dec_and_test(&entry->fs_count))
-		wait_on_atomic_t(&entry->fs_count, ocfs2_filecheck_sysfs_wait,
+	if (!refcount_dec_and_test(&entry->fs_count))
+		/* FIXME: Exposes refcount_t internals! */
+		wait_on_atomic_t(&entry->fs_count.refs,
+				 ocfs2_filecheck_sysfs_wait,
 				 TASK_UNINTERRUPTIBLE);
 
 	spin_lock(&entry->fs_fcheck->fc_lock);
@@ -188,8 +191,8 @@ static int ocfs2_filecheck_sysfs_del(const char *devname)
 static void
 ocfs2_filecheck_sysfs_put(struct ocfs2_filecheck_sysfs_entry *entry)
 {
-	if (atomic_dec_and_test(&entry->fs_count))
-		wake_up_atomic_t(&entry->fs_count);
+	if (refcount_dec_and_test(&entry->fs_count))
+		wake_up_atomic_t(&entry->fs_count.refs);
 }
 
 static struct ocfs2_filecheck_sysfs_entry *
@@ -200,7 +203,7 @@ ocfs2_filecheck_sysfs_get(const char *devname)
 	spin_lock(&ocfs2_filecheck_sysfs_lock);
 	list_for_each_entry(p, &ocfs2_filecheck_sysfs_list, fs_list) {
 		if (!strcmp(p->fs_sb->s_id, devname)) {
-			atomic_inc(&p->fs_count);
+			refcount_inc(&p->fs_count);
 			spin_unlock(&ocfs2_filecheck_sysfs_lock);
 			return p;
 		}
@@ -276,7 +279,7 @@ int ocfs2_filecheck_create_sysfs(struct super_block *sb)
 		ret = -ENOMEM;
 		goto error;
 	} else {
-		atomic_set(&entry->fs_count, 1);
+		refcount_set(&entry->fs_count, 1);
 		entry->fs_sb = sb;
 		entry->fs_devicekset = device_kset;
 		entry->fs_fcheckkset = fcheck_kset;
