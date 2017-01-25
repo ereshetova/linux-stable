@@ -47,7 +47,7 @@ struct kmem_zone;
  */
 struct xfs_efi_log_item {
 	struct xfs_log_item	efi_item;
-	atomic_t		efi_refcount;
+	refcount_t		efi_refcount;
 	atomic_t		efi_next_extent;
 	xfs_efi_log_format_t	efi_format;
 };

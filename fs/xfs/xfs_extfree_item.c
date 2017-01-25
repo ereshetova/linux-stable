@@ -57,8 +57,8 @@ STATIC void
 xfs_efi_release(
 	struct xfs_efi_log_item	*efip)
 {
-	ASSERT(atomic_read(&efip->efi_refcount) > 0);
-	if (atomic_dec_and_test(&efip->efi_refcount)) {
+	ASSERT(refcount_read(&efip->efi_refcount) > 0);
+	if (refcount_dec_and_test(&efip->efi_refcount)) {
 		xfs_trans_ail_delete(&efip->efi_item, SHUTDOWN_LOG_IO_ERROR);
 		xfs_efi_item_free(efip);
 	}
@@ -168,7 +168,7 @@ xfs_efi_init(
 	efip->efi_format.efi_nextents = nextents;
 	efip->efi_format.efi_id = (uintptr_t)(void *)efip;
 	atomic_set(&efip->efi_next_extent, 0);
-	atomic_set(&efip->efi_refcount, 2);
+	refcount_set(&efip->efi_refcount, 2);
 
 	return efip;
 }
