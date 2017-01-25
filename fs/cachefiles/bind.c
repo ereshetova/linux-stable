@@ -105,7 +105,7 @@ static int cachefiles_daemon_add_cache(struct cachefiles_cache *cache)
 
 	ASSERTCMP(fsdef->backer, ==, NULL);
 
-	atomic_set(&fsdef->usage, 1);
+	refcount_set(&fsdef->usage, 1);
 	fsdef->type = FSCACHE_COOKIE_TYPE_INDEX;
 
 	_debug("- fsdef %p", fsdef);
