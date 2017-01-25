@@ -206,7 +206,7 @@ static inline struct hfsplus_sb_info *HFSPLUS_SB(struct super_block *sb)
 
 
 struct hfsplus_inode_info {
-	atomic_t opencnt;
+	refcount_t opencnt;
 
 	/*
 	 * Extent allocation information, protected by extents_lock.

@@ -217,7 +217,7 @@ static int hfsplus_file_open(struct inode *inode, struct file *file)
 		inode = HFSPLUS_I(inode)->rsrc_inode;
 	if (!(file->f_flags & O_LARGEFILE) && i_size_read(inode) > MAX_NON_LFS)
 		return -EOVERFLOW;
-	atomic_inc(&HFSPLUS_I(inode)->opencnt);
+	refcount_inc(&HFSPLUS_I(inode)->opencnt);
 	return 0;
 }
 
@@ -227,7 +227,7 @@ static int hfsplus_file_release(struct inode *inode, struct file *file)
 
 	if (HFSPLUS_IS_RSRC(inode))
 		inode = HFSPLUS_I(inode)->rsrc_inode;
-	if (atomic_dec_and_test(&HFSPLUS_I(inode)->opencnt)) {
+	if (refcount_dec_and_test(&HFSPLUS_I(inode)->opencnt)) {
 		inode_lock(inode);
 		hfsplus_file_truncate(inode);
 		if (inode->i_flags & S_DEAD) {
@@ -372,7 +372,7 @@ struct inode *hfsplus_new_inode(struct super_block *sb, umode_t mode)
 	INIT_LIST_HEAD(&hip->open_dir_list);
 	spin_lock_init(&hip->open_dir_lock);
 	mutex_init(&hip->extents_lock);
-	atomic_set(&hip->opencnt, 0);
+	refcount_set(&hip->opencnt, 0);
 	hip->extent_state = 0;
 	hip->flags = 0;
 	hip->userflags = 0;

@@ -371,7 +371,7 @@ static int hfsplus_unlink(struct inode *dir, struct dentry *dentry)
 	mutex_lock(&sbi->vh_mutex);
 	cnid = (u32)(unsigned long)dentry->d_fsdata;
 	if (inode->i_ino == cnid &&
-	    atomic_read(&HFSPLUS_I(inode)->opencnt)) {
+	    refcount_read(&HFSPLUS_I(inode)->opencnt)) {
 		str.name = name;
 		str.len = sprintf(name, "temp%lu", inode->i_ino);
 		res = hfsplus_rename_cat(inode->i_ino,
@@ -394,7 +394,7 @@ static int hfsplus_unlink(struct inode *dir, struct dentry *dentry)
 	if (!inode->i_nlink) {
 		if (inode->i_ino != cnid) {
 			sbi->file_count--;
-			if (!atomic_read(&HFSPLUS_I(inode)->opencnt)) {
+			if (!refcount_read(&HFSPLUS_I(inode)->opencnt)) {
 				res = hfsplus_delete_cat(inode->i_ino,
 							 sbi->hidden_dir,
 							 NULL);
