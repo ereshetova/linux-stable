@@ -184,7 +184,6 @@ struct fscache_object *cachefiles_grab_object(struct fscache_object *_object,
 {
 	struct cachefiles_object *object =
 		container_of(_object, struct cachefiles_object, fscache);
-	int u;
 
 	_enter("{OBJ%x,%d}", _object->debug_id, atomic_read(&object->usage));
 
@@ -324,7 +323,6 @@ static void cachefiles_put_object(struct fscache_object *_object,
 {
 	struct cachefiles_object *object;
 	struct fscache_cache *cache;
-	int u;
 
 	ASSERT(_object);
 

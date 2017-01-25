@@ -560,7 +560,7 @@ struct afs_volume {
 		struct rcu_head	rcu;
 		afs_volid_t	vid;		/* volume ID */
 	};
-	atomic_t		usage;
+	refcount_t		usage;
 	time64_t		update_at;	/* Time at which to next update */
 	struct afs_cell		*cell;		/* Cell to which belongs (pins ref) */
 	struct rb_node		cell_node;	/* Link in cell->volumes */

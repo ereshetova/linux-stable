@@ -53,7 +53,7 @@ static void afs_remove_volume_from_cell(struct afs_volume *volume)
 	struct afs_cell *cell = volume->cell;
 
 	if (!hlist_unhashed(&volume->proc_link)) {
-		trace_afs_volume(volume->vid, atomic_read(&volume->usage),
+		trace_afs_volume(volume->vid, refcount_read(&volume->usage),
 				 afs_volume_trace_remove);
 		write_seqlock(&cell->volume_lock);
 		hlist_del_rcu(&volume->proc_link);
@@ -88,7 +88,7 @@ static struct afs_volume *afs_alloc_volume(struct afs_fs_context *params,
 	volume->type_force	= params->force;
 	volume->name_len	= vldb->name_len;
 
-	atomic_set(&volume->usage, 1);
+	refcount_set(&volume->usage, 1);
 	INIT_HLIST_NODE(&volume->proc_link);
 	rwlock_init(&volume->servers_lock);
 	rwlock_init(&volume->cb_v_break_lock);
@@ -229,7 +229,7 @@ static void afs_destroy_volume(struct afs_net *net, struct afs_volume *volume)
 	afs_remove_volume_from_cell(volume);
 	afs_put_serverlist(net, rcu_access_pointer(volume->servers));
 	afs_put_cell(net, volume->cell);
-	trace_afs_volume(volume->vid, atomic_read(&volume->usage),
+	trace_afs_volume(volume->vid, refcount_read(&volume->usage),
 			 afs_volume_trace_free);
 	kfree_rcu(volume, rcu);
 
@@ -243,8 +243,8 @@ struct afs_volume *afs_get_volume(struct afs_volume *volume,
 				  enum afs_volume_trace reason)
 {
 	if (volume) {
-		int u = atomic_inc_return(&volume->usage);
-		trace_afs_volume(volume->vid, u, reason);
+		refcount_inc(&volume->usage);
+		trace_afs_volume(volume->vid, refcount_read(&volume->usage), reason);
 	}
 	return volume;
 }
@@ -258,9 +258,8 @@ void afs_put_volume(struct afs_net *net, struct afs_volume *volume,
 {
 	if (volume) {
 		afs_volid_t vid = volume->vid;
-		int u = atomic_dec_return(&volume->usage);
-		trace_afs_volume(vid, u, reason);
-		if (u == 0)
+		trace_afs_volume(vid, refcount_read(&volume->usage) - 1, reason);
+		if (refcount_dec_and_test(&volume->usage))
 			afs_destroy_volume(net, volume);
 	}
 }
