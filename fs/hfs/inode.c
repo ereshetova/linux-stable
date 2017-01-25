@@ -99,7 +99,7 @@ static int hfs_releasepage(struct page *page, gfp_t mask)
 		node = hfs_bnode_findhash(tree, nidx);
 		if (!node)
 			;
-		else if (atomic_read(&node->refcnt))
+		else if (refcount_read(&node->refcnt))
 			res = 0;
 		if (res && node) {
 			hfs_bnode_unhash(node);
@@ -114,7 +114,7 @@ static int hfs_releasepage(struct page *page, gfp_t mask)
 			node = hfs_bnode_findhash(tree, nidx++);
 			if (!node)
 				continue;
-			if (atomic_read(&node->refcnt)) {
+			if (refcount_read(&node->refcnt)) {
 				res = 0;
 				break;
 			}

@@ -254,7 +254,7 @@ static struct hfs_bnode *__hfs_bnode_create(struct hfs_btree *tree, u32 cnid)
 	node->tree = tree;
 	node->this = cnid;
 	set_bit(HFS_BNODE_NEW, &node->flags);
-	atomic_set(&node->refcnt, 1);
+	refcount_set(&node->refcnt, 1);
 	hfs_dbg(BNODE_REFS, "new_node(%d:%d): 1\n",
 		node->tree->cnid, node->this);
 	init_waitqueue_head(&node->lock_wq);
@@ -299,7 +299,7 @@ void hfs_bnode_unhash(struct hfs_bnode *node)
 	struct hfs_bnode **p;
 
 	hfs_dbg(BNODE_REFS, "remove_node(%d:%d): %d\n",
-		node->tree->cnid, node->this, atomic_read(&node->refcnt));
+		node->tree->cnid, node->this, refcount_read(&node->refcnt));
 	for (p = &node->tree->node_hash[hfs_bnode_hash(node->this)];
 	     *p && *p != node; p = &(*p)->next_hash)
 		;
@@ -443,10 +443,10 @@ struct hfs_bnode *hfs_bnode_create(struct hfs_btree *tree, u32 num)
 void hfs_bnode_get(struct hfs_bnode *node)
 {
 	if (node) {
-		atomic_inc(&node->refcnt);
+		refcount_inc(&node->refcnt);
 		hfs_dbg(BNODE_REFS, "get_node(%d:%d): %d\n",
 			node->tree->cnid, node->this,
-			atomic_read(&node->refcnt));
+			refcount_read(&node->refcnt));
 	}
 }
 
@@ -459,9 +459,9 @@ void hfs_bnode_put(struct hfs_bnode *node)
 
 		hfs_dbg(BNODE_REFS, "put_node(%d:%d): %d\n",
 			node->tree->cnid, node->this,
-			atomic_read(&node->refcnt));
-		BUG_ON(!atomic_read(&node->refcnt));
-		if (!atomic_dec_and_lock(&node->refcnt, &tree->hash_lock))
+			refcount_read(&node->refcnt));
+		BUG_ON(!refcount_read(&node->refcnt));
+		if (!refcount_dec_and_lock(&node->refcnt, &tree->hash_lock))
 			return;
 		for (i = 0; i < tree->pages_per_bnode; i++) {
 			if (!node->page[i])

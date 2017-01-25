@@ -145,10 +145,10 @@ void hfs_btree_close(struct hfs_btree *tree)
 	for (i = 0; i < NODE_HASH_SIZE; i++) {
 		while ((node = tree->node_hash[i])) {
 			tree->node_hash[i] = node->next_hash;
-			if (atomic_read(&node->refcnt))
+			if (refcount_read(&node->refcnt))
 				pr_err("node %d:%d still has %d user(s)!\n",
 				       node->tree->cnid, node->this,
-				       atomic_read(&node->refcnt));
+				       refcount_read(&node->refcnt));
 			hfs_bnode_free(node);
 			tree->node_hash_cnt--;
 		}

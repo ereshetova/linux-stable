@@ -21,6 +21,7 @@
 #include <linux/mutex.h>
 #include <linux/buffer_head.h>
 #include <linux/blkdev.h>
+#include <linux/refcount.h>
 #include "hfsplus_raw.h"
 
 #define DBG_BNODE_REFS	0x00000001
@@ -115,7 +116,7 @@ struct hfs_bnode {
 	struct hfs_bnode *next_hash;
 	unsigned long flags;
 	wait_queue_head_t lock_wq;
-	atomic_t refcnt;
+	refcount_t refcnt;
 	unsigned int page_offset;
 	struct page *page[0];
 };

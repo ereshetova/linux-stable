@@ -7,6 +7,7 @@
  * (C) 2003 Ardis Technologies <roman@ardistech.com>
  */
 
+#include <linux/refcount.h>
 #include "hfs_fs.h"
 
 typedef int (*btree_keycmp)(const btree_key *, const btree_key *);
@@ -58,7 +59,7 @@ struct hfs_bnode {
 	struct hfs_bnode *next_hash;
 	unsigned long flags;
 	wait_queue_head_t lock_wq;
-	atomic_t refcnt;
+	refcount_t refcnt;
 	unsigned int page_offset;
 	struct page *page[0];
 };
