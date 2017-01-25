@@ -53,8 +53,8 @@ STATIC void
 xfs_bui_release(
 	struct xfs_bui_log_item	*buip)
 {
-	ASSERT(atomic_read(&buip->bui_refcount) > 0);
-	if (atomic_dec_and_test(&buip->bui_refcount)) {
+	ASSERT(refcount_read(&buip->bui_refcount) > 0);
+	if (refcount_dec_and_test(&buip->bui_refcount)) {
 		xfs_trans_ail_delete(&buip->bui_item, SHUTDOWN_LOG_IO_ERROR);
 		xfs_bui_item_free(buip);
 	}
@@ -144,7 +144,7 @@ xfs_bui_init(
 	buip->bui_format.bui_nextents = XFS_BUI_MAX_FAST_EXTENTS;
 	buip->bui_format.bui_id = (uintptr_t)(void *)buip;
 	atomic_set(&buip->bui_next_extent, 0);
-	atomic_set(&buip->bui_refcount, 2);
+	refcount_set(&buip->bui_refcount, 2);
 
 	return buip;
 }

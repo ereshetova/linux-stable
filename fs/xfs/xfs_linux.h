@@ -8,6 +8,7 @@
 
 #include <linux/types.h>
 #include <linux/uuid.h>
+#include <linux/refcount.h>
 
 /*
  * Kernel specific type declarations for XFS

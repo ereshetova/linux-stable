@@ -42,7 +42,7 @@ struct kmem_zone;
  */
 struct xfs_bui_log_item {
 	struct xfs_log_item		bui_item;
-	atomic_t			bui_refcount;
+	refcount_t			bui_refcount;
 	atomic_t			bui_next_extent;
 	struct xfs_bui_log_format	bui_format;
 };
