@@ -52,8 +52,8 @@ STATIC void
 xfs_rui_release(
 	struct xfs_rui_log_item	*ruip)
 {
-	ASSERT(atomic_read(&ruip->rui_refcount) > 0);
-	if (atomic_dec_and_test(&ruip->rui_refcount)) {
+	ASSERT(refcount_read(&ruip->rui_refcount) > 0);
+	if (refcount_dec_and_test(&ruip->rui_refcount)) {
 		xfs_trans_ail_delete(&ruip->rui_item, SHUTDOWN_LOG_IO_ERROR);
 		xfs_rui_item_free(ruip);
 	}
@@ -147,7 +147,7 @@ xfs_rui_init(
 	ruip->rui_format.rui_nextents = nextents;
 	ruip->rui_format.rui_id = (uintptr_t)(void *)ruip;
 	atomic_set(&ruip->rui_next_extent, 0);
-	atomic_set(&ruip->rui_refcount, 2);
+	refcount_set(&ruip->rui_refcount, 2);
 
 	return ruip;
 }

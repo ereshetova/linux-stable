@@ -45,7 +45,7 @@ struct kmem_zone;
  */
 struct xfs_rui_log_item {
 	struct xfs_log_item		rui_item;
-	atomic_t			rui_refcount;
+	refcount_t			rui_refcount;
 	atomic_t			rui_next_extent;
 	struct xfs_rui_log_format	rui_format;
 };
