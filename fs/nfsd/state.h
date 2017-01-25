@@ -238,7 +238,7 @@ struct nfsd4_conn {
  * working on the object (primarily during the processing of compounds).
  */
 struct nfsd4_session {
-	atomic_t		se_ref;
+	refcount_t		se_ref;
 	struct list_head	se_hash;	/* hash by sessionid */
 	struct list_head	se_perclnt;
 /* See SESSION4_PERSIST, etc. for standard flags; this is internal-only: */
