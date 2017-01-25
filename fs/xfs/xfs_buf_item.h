@@ -18,6 +18,8 @@
 #ifndef	__XFS_BUF_ITEM_H__
 #define	__XFS_BUF_ITEM_H__
 
+#include <linux/refcount.h>
+
 /* kernel only definitions */
 
 /* buf log item flags */
@@ -55,7 +57,7 @@ typedef struct xfs_buf_log_item {
 	struct xfs_buf		*bli_buf;	/* real buffer pointer */
 	unsigned int		bli_flags;	/* misc flags */
 	unsigned int		bli_recur;	/* lock recursion count */
-	atomic_t		bli_refcount;	/* cnt of tp refs */
+	refcount_t		bli_refcount;	/* cnt of tp refs */
 	int			bli_format_count;	/* count of headers */
 	struct xfs_buf_log_format *bli_formats;	/* array of in-log header ptrs */
 	struct xfs_buf_log_format __bli_format;	/* embedded in-log header */

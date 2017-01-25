@@ -97,7 +97,7 @@ _xfs_trans_bjoin(
 	/*
 	 * Take a reference for this transaction on the buf item.
 	 */
-	atomic_inc(&bip->bli_refcount);
+	refcount_inc(&bip->bli_refcount);
 
 	/*
 	 * Get a log_item_desc to point at the new item.
@@ -161,7 +161,7 @@ xfs_trans_get_buf_map(
 		ASSERT(bp->b_transp == tp);
 		bip = bp->b_fspriv;
 		ASSERT(bip != NULL);
-		ASSERT(atomic_read(&bip->bli_refcount) > 0);
+		ASSERT(refcount_read(&bip->bli_refcount) > 0);
 		bip->bli_recur++;
 		trace_xfs_trans_get_buf_recur(bip);
 		return bp;
@@ -212,7 +212,7 @@ xfs_trans_getsb(xfs_trans_t	*tp,
 	if (bp->b_transp == tp) {
 		bip = bp->b_fspriv;
 		ASSERT(bip != NULL);
-		ASSERT(atomic_read(&bip->bli_refcount) > 0);
+		ASSERT(refcount_read(&bip->bli_refcount) > 0);
 		bip->bli_recur++;
 		trace_xfs_trans_getsb_recur(bip);
 		return bp;
@@ -282,7 +282,7 @@ xfs_trans_read_buf_map(
 		bip = bp->b_fspriv;
 		bip->bli_recur++;
 
-		ASSERT(atomic_read(&bip->bli_refcount) > 0);
+		ASSERT(refcount_read(&bip->bli_refcount) > 0);
 		trace_xfs_trans_read_buf_recur(bip);
 		*bpp = bp;
 		return 0;
@@ -371,7 +371,7 @@ xfs_trans_brelse(xfs_trans_t	*tp,
 	ASSERT(bip->bli_item.li_type == XFS_LI_BUF);
 	ASSERT(!(bip->bli_flags & XFS_BLI_STALE));
 	ASSERT(!(bip->__bli_format.blf_flags & XFS_BLF_CANCEL));
-	ASSERT(atomic_read(&bip->bli_refcount) > 0);
+	ASSERT(refcount_read(&bip->bli_refcount) > 0);
 
 	trace_xfs_trans_brelse(bip);
 
@@ -419,7 +419,7 @@ xfs_trans_brelse(xfs_trans_t	*tp,
 	/*
 	 * Drop our reference to the buf log item.
 	 */
-	atomic_dec(&bip->bli_refcount);
+	refcount_dec(&bip->bli_refcount);
 
 	/*
 	 * If the buf item is not tracking data in the log, then
@@ -432,7 +432,7 @@ xfs_trans_brelse(xfs_trans_t	*tp,
 /***
 		ASSERT(bp->b_pincount == 0);
 ***/
-		ASSERT(atomic_read(&bip->bli_refcount) == 0);
+		ASSERT(refcount_read(&bip->bli_refcount) == 0);
 		ASSERT(!(bip->bli_item.li_flags & XFS_LI_IN_AIL));
 		ASSERT(!(bip->bli_flags & XFS_BLI_INODE_ALLOC_BUF));
 		xfs_buf_item_relse(bp);
@@ -458,7 +458,7 @@ xfs_trans_bhold(xfs_trans_t	*tp,
 	ASSERT(bip != NULL);
 	ASSERT(!(bip->bli_flags & XFS_BLI_STALE));
 	ASSERT(!(bip->__bli_format.blf_flags & XFS_BLF_CANCEL));
-	ASSERT(atomic_read(&bip->bli_refcount) > 0);
+	ASSERT(refcount_read(&bip->bli_refcount) > 0);
 
 	bip->bli_flags |= XFS_BLI_HOLD;
 	trace_xfs_trans_bhold(bip);
@@ -478,7 +478,7 @@ xfs_trans_bhold_release(xfs_trans_t	*tp,
 	ASSERT(bip != NULL);
 	ASSERT(!(bip->bli_flags & XFS_BLI_STALE));
 	ASSERT(!(bip->__bli_format.blf_flags & XFS_BLF_CANCEL));
-	ASSERT(atomic_read(&bip->bli_refcount) > 0);
+	ASSERT(refcount_read(&bip->bli_refcount) > 0);
 	ASSERT(bip->bli_flags & XFS_BLI_HOLD);
 
 	bip->bli_flags &= ~XFS_BLI_HOLD;
@@ -520,7 +520,7 @@ xfs_trans_log_buf(xfs_trans_t	*tp,
 	 */
 	bp->b_flags |= XBF_DONE;
 
-	ASSERT(atomic_read(&bip->bli_refcount) > 0);
+	ASSERT(refcount_read(&bip->bli_refcount) > 0);
 	bp->b_iodone = xfs_buf_iodone_callbacks;
 	bip->bli_item.li_cb = xfs_buf_iodone;
 
@@ -591,7 +591,7 @@ xfs_trans_binval(
 
 	ASSERT(bp->b_transp == tp);
 	ASSERT(bip != NULL);
-	ASSERT(atomic_read(&bip->bli_refcount) > 0);
+	ASSERT(refcount_read(&bip->bli_refcount) > 0);
 
 	trace_xfs_trans_binval(bip);
 
@@ -645,7 +645,7 @@ xfs_trans_inode_buf(
 
 	ASSERT(bp->b_transp == tp);
 	ASSERT(bip != NULL);
-	ASSERT(atomic_read(&bip->bli_refcount) > 0);
+	ASSERT(refcount_read(&bip->bli_refcount) > 0);
 
 	bip->bli_flags |= XFS_BLI_INODE_BUF;
 	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_DINO_BUF);
@@ -669,7 +669,7 @@ xfs_trans_stale_inode_buf(
 
 	ASSERT(bp->b_transp == tp);
 	ASSERT(bip != NULL);
-	ASSERT(atomic_read(&bip->bli_refcount) > 0);
+	ASSERT(refcount_read(&bip->bli_refcount) > 0);
 
 	bip->bli_flags |= XFS_BLI_STALE_INODE;
 	bip->bli_item.li_cb = xfs_buf_iodone;
@@ -694,7 +694,7 @@ xfs_trans_inode_alloc_buf(
 
 	ASSERT(bp->b_transp == tp);
 	ASSERT(bip != NULL);
-	ASSERT(atomic_read(&bip->bli_refcount) > 0);
+	ASSERT(refcount_read(&bip->bli_refcount) > 0);
 
 	bip->bli_flags |= XFS_BLI_INODE_ALLOC_BUF;
 	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_DINO_BUF);
@@ -717,7 +717,7 @@ xfs_trans_ordered_buf(
 
 	ASSERT(bp->b_transp == tp);
 	ASSERT(bip != NULL);
-	ASSERT(atomic_read(&bip->bli_refcount) > 0);
+	ASSERT(refcount_read(&bip->bli_refcount) > 0);
 
 	bip->bli_flags |= XFS_BLI_ORDERED;
 	trace_xfs_buf_item_ordered(bip);
@@ -740,7 +740,7 @@ xfs_trans_buf_set_type(
 
 	ASSERT(bp->b_transp == tp);
 	ASSERT(bip != NULL);
-	ASSERT(atomic_read(&bip->bli_refcount) > 0);
+	ASSERT(refcount_read(&bip->bli_refcount) > 0);
 
 	xfs_blft_to_flags(&bip->__bli_format, type);
 }

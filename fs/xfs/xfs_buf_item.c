@@ -137,7 +137,7 @@ xfs_buf_item_size(
 	struct xfs_buf_log_item	*bip = BUF_ITEM(lip);
 	int			i;
 
-	ASSERT(atomic_read(&bip->bli_refcount) > 0);
+	ASSERT(refcount_read(&bip->bli_refcount) > 0);
 	if (bip->bli_flags & XFS_BLI_STALE) {
 		/*
 		 * The buffer is stale, so all we need to log
@@ -316,7 +316,7 @@ xfs_buf_item_format(
 	uint			offset = 0;
 	int			i;
 
-	ASSERT(atomic_read(&bip->bli_refcount) > 0);
+	ASSERT(refcount_read(&bip->bli_refcount) > 0);
 	ASSERT((bip->bli_flags & XFS_BLI_LOGGED) ||
 	       (bip->bli_flags & XFS_BLI_STALE));
 	ASSERT((bip->bli_flags & XFS_BLI_STALE) ||
@@ -383,14 +383,14 @@ xfs_buf_item_pin(
 {
 	struct xfs_buf_log_item	*bip = BUF_ITEM(lip);
 
-	ASSERT(atomic_read(&bip->bli_refcount) > 0);
+	ASSERT(refcount_read(&bip->bli_refcount) > 0);
 	ASSERT((bip->bli_flags & XFS_BLI_LOGGED) ||
 	       (bip->bli_flags & XFS_BLI_ORDERED) ||
 	       (bip->bli_flags & XFS_BLI_STALE));
 
 	trace_xfs_buf_item_pin(bip);
 
-	atomic_inc(&bip->bli_refcount);
+	refcount_inc(&bip->bli_refcount);
 	atomic_inc(&bip->bli_buf->b_pin_count);
 }
 
@@ -419,11 +419,11 @@ xfs_buf_item_unpin(
 	int		freed;
 
 	ASSERT(bp->b_fspriv == bip);
-	ASSERT(atomic_read(&bip->bli_refcount) > 0);
+	ASSERT(refcount_read(&bip->bli_refcount) > 0);
 
 	trace_xfs_buf_item_unpin(bip);
 
-	freed = atomic_dec_and_test(&bip->bli_refcount);
+	freed = refcount_dec_and_test(&bip->bli_refcount);
 
 	if (atomic_dec_and_test(&bp->b_pin_count))
 		wake_up_all(&bp->b_waiters);
@@ -605,7 +605,7 @@ xfs_buf_item_unlock(
 		trace_xfs_buf_item_unlock_stale(bip);
 		ASSERT(bip->__bli_format.blf_flags & XFS_BLF_CANCEL);
 		if (!aborted) {
-			atomic_dec(&bip->bli_refcount);
+			refcount_dec(&bip->bli_refcount);
 			return;
 		}
 	}
@@ -642,7 +642,7 @@ xfs_buf_item_unlock(
 	 * it in this case, because an aborted transaction has already shut the
 	 * filesystem down and this is the last chance we will have to do so.
 	 */
-	if (atomic_dec_and_test(&bip->bli_refcount)) {
+	if (refcount_dec_and_test(&bip->bli_refcount)) {
 		if (clean)
 			xfs_buf_item_relse(bp);
 		else if (aborted) {

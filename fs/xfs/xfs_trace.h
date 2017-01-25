@@ -479,7 +479,7 @@ DECLARE_EVENT_CLASS(xfs_buf_item_class,
 		__entry->dev = bip->bli_buf->b_target->bt_dev;
 		__entry->bli_flags = bip->bli_flags;
 		__entry->bli_recur = bip->bli_recur;
-		__entry->bli_refcount = atomic_read(&bip->bli_refcount);
+		__entry->bli_refcount = refcount_read(&bip->bli_refcount);
 		__entry->buf_bno = bip->bli_buf->b_bn;
 		__entry->buf_len = BBTOB(bip->bli_buf->b_length);
 		__entry->buf_flags = bip->bli_buf->b_flags;
