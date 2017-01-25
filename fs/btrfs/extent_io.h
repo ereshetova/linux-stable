@@ -150,8 +150,8 @@ struct extent_buffer {
 	unsigned long bflags;
 	struct btrfs_fs_info *fs_info;
 	spinlock_t refs_lock;
-	atomic_t refs;
-	atomic_t io_pages;
+	refcount_t refs;
+	refcount_t io_pages;
 	int read_mirror;
 	struct rcu_head rcu_head;
 	pid_t lock_owner;
@@ -394,7 +394,7 @@ static inline unsigned long num_extent_pages(u64 start, u64 len)
 
 static inline void extent_buffer_get(struct extent_buffer *eb)
 {
-	atomic_inc(&eb->refs);
+	refcount_inc(&eb->refs);
 }
 
 int memcmp_extent_buffer(struct extent_buffer *eb, const void *ptrv,

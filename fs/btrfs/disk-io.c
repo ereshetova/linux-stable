@@ -706,7 +706,7 @@ static int btree_readpage_end_io_hook(struct btrfs_io_bio *io_bio,
 	 */
 	extent_buffer_get(eb);
 
-	reads_done = atomic_dec_and_test(&eb->io_pages);
+	reads_done = refcount_dec_and_test(&eb->io_pages);
 	if (!reads_done)
 		goto err;
 
@@ -770,7 +770,7 @@ err:
 		 * again, we have to make sure it has something
 		 * to decrement
 		 */
-		atomic_inc(&eb->io_pages);
+		refcount_set(&eb->io_pages, 1);
 		clear_extent_buffer_uptodate(eb);
 	}
 	free_extent_buffer(eb);
@@ -785,7 +785,7 @@ static int btree_io_failed_hook(struct page *page, int failed_mirror)
 	eb = (struct extent_buffer *)page->private;
 	set_bit(EXTENT_BUFFER_READ_ERR, &eb->bflags);
 	eb->read_mirror = failed_mirror;
-	atomic_dec(&eb->io_pages);
+	refcount_dec(&eb->io_pages);
 	if (test_and_clear_bit(EXTENT_BUFFER_READAHEAD, &eb->bflags))
 		btree_readahead_hook(eb->fs_info, eb, -EIO);
 	return -EIO;	/* we fixed nothing */
@@ -1144,7 +1144,7 @@ static int btree_set_page_dirty(struct page *page)
 	eb = (struct extent_buffer *)page->private;
 	BUG_ON(!eb);
 	BUG_ON(!test_bit(EXTENT_BUFFER_DIRTY, &eb->bflags));
-	BUG_ON(!atomic_read(&eb->refs));
+	BUG_ON(!refcount_read(&eb->refs));
 	btrfs_assert_tree_locked(eb);
 #endif
 	return __set_page_dirty_nobuffers(page);
