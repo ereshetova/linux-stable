@@ -3618,7 +3618,7 @@ cifs_put_tlink(struct tcon_link *tlink)
 	if (!tlink || IS_ERR(tlink))
 		return;
 
-	if (!atomic_dec_and_test(&tlink->tl_count) ||
+	if (!refcount_dec_and_test(&tlink->tl_count) ||
 	    test_bit(TCON_LINK_IN_TREE, &tlink->tl_flags)) {
 		tlink->tl_time = jiffies;
 		return;
@@ -5436,7 +5436,7 @@ cifs_sb_tlink(struct cifs_sb_info *cifs_sb)
 		newtlink->tl_tcon = ERR_PTR(-EACCES);
 		set_bit(TCON_LINK_PENDING, &newtlink->tl_flags);
 		set_bit(TCON_LINK_IN_TREE, &newtlink->tl_flags);
-		cifs_get_tlink(newtlink);
+		refcount_set(&newtlink->tl_count, 1);
 
 		spin_lock(&cifs_sb->tlink_tree_lock);
 		/* was one inserted after previous search? */
@@ -5514,11 +5514,11 @@ cifs_prune_tlinks(struct work_struct *work)
 		tlink = rb_entry(tmp, struct tcon_link, tl_rbnode);
 
 		if (test_bit(TCON_LINK_MASTER, &tlink->tl_flags) ||
-		    atomic_read(&tlink->tl_count) != 0 ||
+		    refcount_read(&tlink->tl_count) != 0 ||
 		    time_after(tlink->tl_time + TLINK_IDLE_EXPIRE, jiffies))
 			continue;
 
-		cifs_get_tlink(tlink);
+		refcount_set(&tlink->tl_count, 1);
 		clear_bit(TCON_LINK_IN_TREE, &tlink->tl_flags);
 		rb_erase(tmp, root);
 

@@ -28,6 +28,7 @@
 #include "cifsacl.h"
 #include <crypto/internal/hash.h>
 #include <linux/scatterlist.h>
+#include <linux/refcount.h>
 #include <uapi/linux/cifs/cifs_mount.h>
 #include "smb2pdu.h"
 
@@ -1199,7 +1200,7 @@ struct tcon_link {
 #define TCON_LINK_PENDING	1
 #define TCON_LINK_IN_TREE	2
 	unsigned long		tl_time;
-	atomic_t		tl_count;
+	refcount_t		tl_count;
 	struct cifs_tcon	*tl_tcon;
 };
 
@@ -1224,7 +1225,7 @@ static inline struct tcon_link *
 cifs_get_tlink(struct tcon_link *tlink)
 {
 	if (tlink && !IS_ERR(tlink))
-		atomic_inc(&tlink->tl_count);
+		refcount_inc(&tlink->tl_count);
 	return tlink;
 }
 
