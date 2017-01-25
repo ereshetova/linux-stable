@@ -8,6 +8,7 @@
 #include <linux/namei.h>
 #include <linux/writeback.h>
 #include <linux/falloc.h>
+#include <linux/refcount.h>
 
 #include "super.h"
 #include "mds_client.h"
@@ -609,7 +610,7 @@ struct ceph_aio_request {
 	int error;
 	struct list_head osd_reqs;
 	unsigned num_reqs;
-	atomic_t pending_reqs;
+	refcount_t pending_reqs;
 	struct timespec mtime;
 	struct ceph_cap_flush *prealloc_cf;
 };
@@ -627,7 +628,7 @@ static void ceph_aio_complete(struct inode *inode,
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	int ret;
 
-	if (!atomic_dec_and_test(&aio_req->pending_reqs))
+	if (!refcount_dec_and_test(&aio_req->pending_reqs))
 		return;
 
 	ret = aio_req->error;
@@ -988,7 +989,7 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 		if (aio_req) {
 			aio_req->total_len += len;
 			aio_req->num_reqs++;
-			atomic_inc(&aio_req->pending_reqs);
+			refcount_inc(&aio_req->pending_reqs);
 
 			req->r_callback = ceph_aio_complete_req;
 			req->r_inode = inode;
