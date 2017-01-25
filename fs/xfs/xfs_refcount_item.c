@@ -52,8 +52,8 @@ STATIC void
 xfs_cui_release(
 	struct xfs_cui_log_item	*cuip)
 {
-	ASSERT(atomic_read(&cuip->cui_refcount) > 0);
-	if (atomic_dec_and_test(&cuip->cui_refcount)) {
+	ASSERT(refcount_read(&cuip->cui_refcount) > 0);
+	if (refcount_dec_and_test(&cuip->cui_refcount)) {
 		xfs_trans_ail_delete(&cuip->cui_item, SHUTDOWN_LOG_IO_ERROR);
 		xfs_cui_item_free(cuip);
 	}
@@ -149,7 +149,7 @@ xfs_cui_init(
 	cuip->cui_format.cui_nextents = nextents;
 	cuip->cui_format.cui_id = (uintptr_t)(void *)cuip;
 	atomic_set(&cuip->cui_next_extent, 0);
-	atomic_set(&cuip->cui_refcount, 2);
+	refcount_set(&cuip->cui_refcount, 2);
 
 	return cuip;
 }
