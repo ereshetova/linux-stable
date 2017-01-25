@@ -91,7 +91,7 @@ int mb_cache_entry_create(struct mb_cache *cache, gfp_t mask, u32 key,
 
 	INIT_LIST_HEAD(&entry->e_list);
 	/* One ref for hash, one ref returned */
-	atomic_set(&entry->e_refcnt, 1);
+	refcount_set(&entry->e_refcnt, 1);
 	entry->e_key = key;
 	entry->e_value = value;
 	entry->e_reusable = reusable;
@@ -111,7 +111,7 @@ int mb_cache_entry_create(struct mb_cache *cache, gfp_t mask, u32 key,
 	spin_lock(&cache->c_list_lock);
 	list_add_tail(&entry->e_list, &cache->c_list);
 	/* Grab ref for LRU list */
-	atomic_inc(&entry->e_refcnt);
+	refcount_inc(&entry->e_refcnt);
 	cache->c_entry_count++;
 	spin_unlock(&cache->c_list_lock);
 
@@ -143,7 +143,7 @@ static struct mb_cache_entry *__entry_find(struct mb_cache *cache,
 		entry = hlist_bl_entry(node, struct mb_cache_entry,
 				       e_hash_list);
 		if (entry->e_key == key && entry->e_reusable) {
-			atomic_inc(&entry->e_refcnt);
+			refcount_inc(&entry->e_refcnt);
 			goto out;
 		}
 		node = node->next;
@@ -206,7 +206,7 @@ struct mb_cache_entry *mb_cache_entry_get(struct mb_cache *cache, u32 key,
 	hlist_bl_lock(head);
 	hlist_bl_for_each_entry(entry, node, head, e_hash_list) {
 		if (entry->e_key == key && entry->e_value == value) {
-			atomic_inc(&entry->e_refcnt);
+			refcount_inc(&entry->e_refcnt);
 			goto out;
 		}
 	}
@@ -243,7 +243,7 @@ void mb_cache_entry_delete(struct mb_cache *cache, u32 key, u64 value)
 				if (!WARN_ONCE(cache->c_entry_count == 0,
 		"mbcache: attempt to decrement c_entry_count past zero"))
 					cache->c_entry_count--;
-				atomic_dec(&entry->e_refcnt);
+				refcount_dec(&entry->e_refcnt);
 			}
 			spin_unlock(&cache->c_list_lock);
 			mb_cache_entry_put(cache, entry);
@@ -304,7 +304,7 @@ static unsigned long mb_cache_shrink(struct mb_cache *cache,
 		hlist_bl_lock(head);
 		if (!hlist_bl_unhashed(&entry->e_hash_list)) {
 			hlist_bl_del_init(&entry->e_hash_list);
-			atomic_dec(&entry->e_refcnt);
+			refcount_dec(&entry->e_refcnt);
 		}
 		hlist_bl_unlock(head);
 		if (mb_cache_entry_put(cache, entry))
@@ -402,11 +402,11 @@ void mb_cache_destroy(struct mb_cache *cache)
 	list_for_each_entry_safe(entry, next, &cache->c_list, e_list) {
 		if (!hlist_bl_unhashed(&entry->e_hash_list)) {
 			hlist_bl_del_init(&entry->e_hash_list);
-			atomic_dec(&entry->e_refcnt);
+			refcount_dec(&entry->e_refcnt);
 		} else
 			WARN_ON(1);
 		list_del(&entry->e_list);
-		WARN_ON(atomic_read(&entry->e_refcnt) != 1);
+		WARN_ON(refcount_read(&entry->e_refcnt) != 1);
 		mb_cache_entry_put(cache, entry);
 	}
 	kfree(cache->c_hash);

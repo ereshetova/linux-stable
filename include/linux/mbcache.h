@@ -5,7 +5,7 @@
 #include <linux/hash.h>
 #include <linux/list_bl.h>
 #include <linux/list.h>
-#include <linux/atomic.h>
+#include <linux/refcount.h>
 #include <linux/fs.h>
 
 struct mb_cache;
@@ -15,7 +15,7 @@ struct mb_cache_entry {
 	struct list_head	e_list;
 	/* Hash table list - protected by hash chain bitlock */
 	struct hlist_bl_node	e_hash_list;
-	atomic_t		e_refcnt;
+	refcount_t		e_refcnt;
 	/* Key in hash - stable during lifetime of the entry */
 	u32			e_key;
 	u32			e_referenced:1;
@@ -33,7 +33,7 @@ void __mb_cache_entry_free(struct mb_cache_entry *entry);
 static inline int mb_cache_entry_put(struct mb_cache *cache,
 				     struct mb_cache_entry *entry)
 {
-	if (!atomic_dec_and_test(&entry->e_refcnt))
+	if (!refcount_dec_and_test(&entry->e_refcnt))
 		return 0;
 	__mb_cache_entry_free(entry);
 	return 1;
