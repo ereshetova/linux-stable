@@ -35,7 +35,7 @@ void fscache_operation_init(struct fscache_cookie *cookie,
 			    fscache_operation_release_t release)
 {
 	INIT_WORK(&op->work, fscache_op_work_func);
-	atomic_set(&op->usage, 1);
+	refcount_set(&op->usage, 1);
 	op->state = FSCACHE_OP_ST_INITIALISED;
 	op->debug_id = atomic_inc_return(&fscache_op_debug_id);
 	op->processor = processor;
@@ -60,12 +60,12 @@ void fscache_enqueue_operation(struct fscache_operation *op)
 	struct fscache_cookie *cookie = op->object->cookie;
 	
 	_enter("{OBJ%x OP%x,%u}",
-	       op->object->debug_id, op->debug_id, atomic_read(&op->usage));
+	       op->object->debug_id, op->debug_id, refcount_read(&op->usage));
 
 	ASSERT(list_empty(&op->pend_link));
 	ASSERT(op->processor != NULL);
 	ASSERT(fscache_object_is_available(op->object));
-	ASSERTCMP(atomic_read(&op->usage), >, 0);
+	ASSERTCMP(refcount_read(&op->usage), >, 0);
 	ASSERTIFCMP(op->state != FSCACHE_OP_ST_IN_PROGRESS,
 		    op->state, ==,  FSCACHE_OP_ST_CANCELLED);
 
@@ -74,7 +74,7 @@ void fscache_enqueue_operation(struct fscache_operation *op)
 	case FSCACHE_OP_ASYNC:
 		trace_fscache_op(cookie, op, fscache_op_enqueue_async);
 		_debug("queue async");
-		atomic_inc(&op->usage);
+		refcount_inc(&op->usage);
 		if (!queue_work(fscache_op_wq, &op->work))
 			fscache_put_operation(op);
 		break;
@@ -163,7 +163,7 @@ int fscache_submit_exclusive_op(struct fscache_object *object,
 	trace_fscache_op(object->cookie, op, fscache_op_submit_ex);
 
 	ASSERTCMP(op->state, ==, FSCACHE_OP_ST_INITIALISED);
-	ASSERTCMP(atomic_read(&op->usage), >, 0);
+	ASSERTCMP(refcount_read(&op->usage), >, 0);
 
 	spin_lock(&object->lock);
 	ASSERTCMP(object->n_ops, >=, object->n_in_progress);
@@ -190,11 +190,11 @@ int fscache_submit_exclusive_op(struct fscache_object *object,
 		object->n_exclusive++;	/* reads and writes must wait */
 
 		if (object->n_in_progress > 0) {
-			atomic_inc(&op->usage);
+			refcount_inc(&op->usage);
 			list_add_tail(&op->pend_link, &object->pending_ops);
 			fscache_stat(&fscache_n_op_pend);
 		} else if (!list_empty(&object->pending_ops)) {
-			atomic_inc(&op->usage);
+			refcount_inc(&op->usage);
 			list_add_tail(&op->pend_link, &object->pending_ops);
 			fscache_stat(&fscache_n_op_pend);
 			fscache_start_operations(object);
@@ -210,7 +210,7 @@ int fscache_submit_exclusive_op(struct fscache_object *object,
 		op->object = object;
 		object->n_ops++;
 		object->n_exclusive++;	/* reads and writes must wait */
-		atomic_inc(&op->usage);
+		refcount_inc(&op->usage);
 		list_add_tail(&op->pend_link, &object->pending_ops);
 		fscache_stat(&fscache_n_op_pend);
 		ret = 0;
@@ -245,12 +245,12 @@ int fscache_submit_op(struct fscache_object *object,
 	int ret;
 
 	_enter("{OBJ%x OP%x},{%u}",
-	       object->debug_id, op->debug_id, atomic_read(&op->usage));
+	       object->debug_id, op->debug_id, refcount_read(&op->usage));
 
 	trace_fscache_op(object->cookie, op, fscache_op_submit);
 
 	ASSERTCMP(op->state, ==, FSCACHE_OP_ST_INITIALISED);
-	ASSERTCMP(atomic_read(&op->usage), >, 0);
+	ASSERTCMP(refcount_read(&op->usage), >, 0);
 
 	spin_lock(&object->lock);
 	ASSERTCMP(object->n_ops, >=, object->n_in_progress);
@@ -276,11 +276,11 @@ int fscache_submit_op(struct fscache_object *object,
 		object->n_ops++;
 
 		if (object->n_exclusive > 0) {
-			atomic_inc(&op->usage);
+			refcount_inc(&op->usage);
 			list_add_tail(&op->pend_link, &object->pending_ops);
 			fscache_stat(&fscache_n_op_pend);
 		} else if (!list_empty(&object->pending_ops)) {
-			atomic_inc(&op->usage);
+			refcount_inc(&op->usage);
 			list_add_tail(&op->pend_link, &object->pending_ops);
 			fscache_stat(&fscache_n_op_pend);
 			fscache_start_operations(object);
@@ -292,7 +292,7 @@ int fscache_submit_op(struct fscache_object *object,
 	} else if (flags & BIT(FSCACHE_OBJECT_IS_LOOKED_UP)) {
 		op->object = object;
 		object->n_ops++;
-		atomic_inc(&op->usage);
+		refcount_inc(&op->usage);
 		list_add_tail(&op->pend_link, &object->pending_ops);
 		fscache_stat(&fscache_n_op_pend);
 		ret = 0;
@@ -370,7 +370,7 @@ int fscache_cancel_op(struct fscache_operation *op,
 
 	ASSERTCMP(op->state, >=, FSCACHE_OP_ST_PENDING);
 	ASSERTCMP(op->state, !=, FSCACHE_OP_ST_CANCELLED);
-	ASSERTCMP(atomic_read(&op->usage), >, 0);
+	ASSERTCMP(refcount_read(&op->usage), >, 0);
 
 	spin_lock(&object->lock);
 
@@ -497,11 +497,11 @@ void fscache_put_operation(struct fscache_operation *op)
 
 	_enter("{OBJ%x OP%x,%d}",
 	       op->object ? op->object->debug_id : 0,
-	       op->debug_id, atomic_read(&op->usage));
+	       op->debug_id, refcount_read(&op->usage));
 
-	ASSERTCMP(atomic_read(&op->usage), >, 0);
+	ASSERTCMP(refcount_read(&op->usage), >, 0);
 
-	if (!atomic_dec_and_test(&op->usage))
+	if (!refcount_dec_and_test(&op->usage))
 		return;
 
 	trace_fscache_op(op->object ? op->object->cookie : NULL, op, fscache_op_put);
@@ -589,7 +589,7 @@ void fscache_operation_gc(struct work_struct *work)
 		       object->debug_id, op->debug_id);
 		fscache_stat(&fscache_n_op_gc);
 
-		ASSERTCMP(atomic_read(&op->usage), ==, 0);
+		ASSERTCMP(refcount_read(&op->usage), ==, 0);
 		ASSERTCMP(op->state, ==, FSCACHE_OP_ST_DEAD);
 
 		ASSERTCMP(object->n_ops, >, 0);
@@ -619,7 +619,7 @@ void fscache_op_work_func(struct work_struct *work)
 	unsigned long start;
 
 	_enter("{OBJ%x OP%x,%d}",
-	       op->object->debug_id, op->debug_id, atomic_read(&op->usage));
+	       op->object->debug_id, op->debug_id, refcount_read(&op->usage));
 
 	trace_fscache_op(op->object->cookie, op, fscache_op_work);
 

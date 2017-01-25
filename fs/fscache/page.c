@@ -796,7 +796,7 @@ static void fscache_write_op(struct fscache_operation *_op)
 	void *results[1];
 	int ret;
 
-	_enter("{OP%x,%d}", op->op.debug_id, atomic_read(&op->op.usage));
+	_enter("{OP%x,%d}", op->op.debug_id, refcount_read(&op->op.usage));
 
 again:
 	spin_lock(&object->lock);

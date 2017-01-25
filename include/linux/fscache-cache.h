@@ -111,7 +111,7 @@ struct fscache_operation {
 #define FSCACHE_OP_KEEP_FLAGS	0x00f0	/* flags to keep when repurposing an op */
 
 	enum fscache_operation_state state;
-	atomic_t		usage;
+	refcount_t		usage;
 	unsigned		debug_id;	/* debugging ID */
 
 	/* operation processor callback
@@ -170,7 +170,7 @@ typedef int (*fscache_pages_retrieval_func_t)(struct fscache_retrieval *op,
 static inline
 struct fscache_retrieval *fscache_get_retrieval(struct fscache_retrieval *op)
 {
-	atomic_inc(&op->op.usage);
+	refcount_inc(&op->op.usage);
 	return op;
 }
 

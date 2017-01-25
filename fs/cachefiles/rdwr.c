@@ -700,7 +700,7 @@ int cachefiles_read_or_alloc_pages(struct fscache_retrieval *op,
 			     struct cachefiles_cache, cache);
 
 	_enter("{OBJ%x,%d},,%d,,",
-	       object->fscache.debug_id, atomic_read(&op->op.usage),
+	       object->fscache.debug_id, refcount_read(&op->op.usage),
 	       *nr_pages);
 
 	if (!object->backer)
