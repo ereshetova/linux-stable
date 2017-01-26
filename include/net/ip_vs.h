@@ -618,7 +618,7 @@ struct ip_vs_dest_user_kern {
 struct ip_vs_service {
 	struct hlist_node	s_list;   /* for normal service table */
 	struct hlist_node	f_list;   /* for fwmark-based service table */
-	atomic_t		refcnt;   /* reference counter */
+	refcount_t		refcnt;   /* reference counter */
 
 	u16			af;       /* address family */
 	__u16			protocol; /* which protocol (TCP/UDP) */

@@ -322,7 +322,7 @@ static int ip_vs_svc_hash(struct ip_vs_service *svc)
 
 	svc->flags |= IP_VS_SVC_F_HASHED;
 	/* increase its refcnt because it is referenced by the svc table */
-	atomic_inc(&svc->refcnt);
+	refcount_inc(&svc->refcnt);
 	return 1;
 }
 
@@ -348,7 +348,7 @@ static int ip_vs_svc_unhash(struct ip_vs_service *svc)
 	}
 
 	svc->flags &= ~IP_VS_SVC_F_HASHED;
-	atomic_dec(&svc->refcnt);
+	refcount_dec(&svc->refcnt);
 	return 1;
 }
 
@@ -457,7 +457,7 @@ ip_vs_service_find(struct netns_ipvs *ipvs, int af, __u32 fwmark, __u16 protocol
 static inline void
 __ip_vs_bind_svc(struct ip_vs_dest *dest, struct ip_vs_service *svc)
 {
-	atomic_inc(&svc->refcnt);
+	refcount_inc(&svc->refcnt);
 	rcu_assign_pointer(dest->svc, svc);
 }
 
@@ -477,7 +477,7 @@ static void ip_vs_service_rcu_free(struct rcu_head *head)
 
 static void __ip_vs_svc_put(struct ip_vs_service *svc, bool do_delay)
 {
-	if (atomic_dec_and_test(&svc->refcnt)) {
+	if (refcount_dec_and_test(&svc->refcnt)) {
 		IP_VS_DBG_BUF(3, "Removing service %u/%s:%u\n",
 			      svc->fwmark,
 			      IP_VS_DBG_ADDR(svc->af, &svc->addr),
@@ -1247,7 +1247,7 @@ ip_vs_add_service(struct netns_ipvs *ipvs, struct ip_vs_service_user_kern *u,
 
 
 	/* I'm the first user of the service */
-	atomic_set(&svc->refcnt, 0);
+	refcount_set(&svc->refcnt, 0);
 
 	svc->af = u->af;
 	svc->protocol = u->protocol;
@@ -1462,7 +1462,7 @@ static void __ip_vs_del_service(struct ip_vs_service *svc, bool cleanup)
 static void ip_vs_unlink_service(struct ip_vs_service *svc, bool cleanup)
 {
 	/* Hold svc to avoid double release from dest_trash */
-	atomic_inc(&svc->refcnt);
+	refcount_inc(&svc->refcnt);
 	/*
 	 * Unhash it from the service table
 	 */
