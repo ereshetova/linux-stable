@@ -5,6 +5,7 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/types.h>
+#include <linux/refcount.h>
 #include <net/route.h>
 
 #define LWTUNNEL_HASH_BITS   7
@@ -25,7 +26,7 @@ struct lwtunnel_state {
 	__u16		type;
 	__u16		flags;
 	__u16		headroom;
-	atomic_t	refcnt;
+	refcount_t	refcnt;
 	int		(*orig_output)(struct net *net, struct sock *sk, struct sk_buff *skb);
 	int		(*orig_input)(struct sk_buff *);
 	struct		rcu_head rcu;
@@ -55,7 +56,7 @@ static inline struct lwtunnel_state *
 lwtstate_get(struct lwtunnel_state *lws)
 {
 	if (lws)
-		atomic_inc(&lws->refcnt);
+		refcount_inc(&lws->refcnt);
 
 	return lws;
 }
@@ -65,7 +66,7 @@ static inline void lwtstate_put(struct lwtunnel_state *lws)
 	if (!lws)
 		return;
 
-	if (atomic_dec_and_test(&lws->refcnt))
+	if (refcount_dec_and_test(&lws->refcnt))
 		lwtstate_free(lws);
 }
 
