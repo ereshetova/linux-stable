@@ -29,7 +29,7 @@ static inline int xt_ct_target(struct sk_buff *skb, struct nf_conn *ct)
 	/* special case the untracked ct : we want the percpu object */
 	if (!ct)
 		ct = nf_ct_untracked_get();
-	atomic_inc(&ct->ct_general.use);
+	refcount_inc(&ct->ct_general.use);
 	nf_ct_set(skb, ct, IP_CT_NEW);
 
 	return XT_CONTINUE;

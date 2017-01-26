@@ -24,6 +24,7 @@
 #include <linux/socket.h>
 
 #include <linux/atomic.h>
+#include <linux/refcount.h>
 #include <asm/types.h>
 #include <linux/spinlock.h>
 #include <linux/net.h>
@@ -243,7 +244,7 @@ struct napi_struct;
 
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 struct nf_conntrack {
-	atomic_t use;
+	refcount_t use;
 };
 #endif
 
@@ -3576,13 +3577,13 @@ static inline struct nf_conntrack *skb_nfct(const struct sk_buff *skb)
 void nf_conntrack_destroy(struct nf_conntrack *nfct);
 static inline void nf_conntrack_put(struct nf_conntrack *nfct)
 {
-	if (nfct && atomic_dec_and_test(&nfct->use))
+	if (nfct && refcount_dec_and_test(&nfct->use))
 		nf_conntrack_destroy(nfct);
 }
 static inline void nf_conntrack_get(struct nf_conntrack *nfct)
 {
 	if (nfct)
-		atomic_inc(&nfct->use);
+		refcount_inc(&nfct->use);
 }
 #endif
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)

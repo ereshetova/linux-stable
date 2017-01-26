@@ -712,7 +712,7 @@ static void nft_notrack_eval(const struct nft_expr *expr,
 		return;
 
 	ct = nf_ct_untracked_get();
-	atomic_inc(&ct->ct_general.use);
+	refcount_inc(&ct->ct_general.use);
 	nf_ct_set(skb, ct, IP_CT_NEW);
 }
 
