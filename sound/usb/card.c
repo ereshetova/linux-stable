@@ -378,7 +378,7 @@ static int snd_usb_audio_create(struct usb_interface *intf,
 	chip->setup = device_setup[idx];
 	chip->autoclock = autoclock;
 	atomic_set(&chip->active, 1); /* avoid autopm during probing */
-	atomic_set(&chip->usage_count, 0);
+	refcount_set(&chip->usage_count, 0);
 	atomic_set(&chip->shutdown, 0);
 
 	chip->usb_id = USB_ID(le16_to_cpu(dev->descriptor.idVendor),
@@ -657,7 +657,7 @@ static void usb_audio_disconnect(struct usb_interface *intf)
 		 * they are protected by snd_usb_lock_shutdown()
 		 */
 		wait_event(chip->shutdown_wait,
-			   !atomic_read(&chip->usage_count));
+			   !refcount_read(&chip->usage_count));
 		snd_card_disconnect(card);
 		/* release the pcm resources */
 		list_for_each_entry(as, &chip->pcm_list, list) {
@@ -692,7 +692,7 @@ int snd_usb_lock_shutdown(struct snd_usb_audio *chip)
 {
 	int err;
 
-	atomic_inc(&chip->usage_count);
+	refcount_inc(&chip->usage_count);
 	if (atomic_read(&chip->shutdown)) {
 		err = -EIO;
 		goto error;
@@ -703,7 +703,7 @@ int snd_usb_lock_shutdown(struct snd_usb_audio *chip)
 	return 0;
 
  error:
-	if (atomic_dec_and_test(&chip->usage_count))
+	if (refcount_dec_and_test(&chip->usage_count))
 		wake_up(&chip->shutdown_wait);
 	return err;
 }
@@ -712,7 +712,7 @@ int snd_usb_lock_shutdown(struct snd_usb_audio *chip)
 void snd_usb_unlock_shutdown(struct snd_usb_audio *chip)
 {
 	snd_usb_autosuspend(chip);
-	if (atomic_dec_and_test(&chip->usage_count))
+	if (refcount_dec_and_test(&chip->usage_count))
 		wake_up(&chip->shutdown_wait);
 }
 

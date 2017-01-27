@@ -26,6 +26,8 @@
 #define USB_ID_VENDOR(id) ((id) >> 16)
 #define USB_ID_PRODUCT(id) ((u16)(id))
 
+#include <linux/refcount.h>
+
 /*
  *
  */
@@ -40,7 +42,7 @@ struct snd_usb_audio {
 	unsigned int autosuspended:1;	
 	atomic_t active;
 	atomic_t shutdown;
-	atomic_t usage_count;
+	refcount_t usage_count;
 	wait_queue_head_t shutdown_wait;
 	unsigned int txfr_quirk:1; /* Subframe boundaries on transfers */
 	unsigned int tx_length_quirk:1; /* Put length specifier in transfers */
