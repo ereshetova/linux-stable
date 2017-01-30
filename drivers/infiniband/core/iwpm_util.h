@@ -45,6 +45,7 @@
 #include <linux/mutex.h>
 #include <linux/jhash.h>
 #include <linux/kref.h>
+#include <linux/refcount.h>
 #include <net/netlink.h>
 #include <linux/errno.h>
 #include <rdma/iw_portmap.h>
@@ -89,7 +90,7 @@ struct iwpm_remote_info {
 };
 
 struct iwpm_admin_data {
-	atomic_t refcount;
+	refcount_t refcount;
 	atomic_t nlmsg_seq;
 	int      client_list[RDMA_NL_NUM_CLIENTS];
 	u32      reg_list[RDMA_NL_NUM_CLIENTS];
