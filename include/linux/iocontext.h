@@ -4,6 +4,7 @@
 
 #include <linux/radix-tree.h>
 #include <linux/rcupdate.h>
+#include <linux/refcount.h>
 #include <linux/workqueue.h>
 
 enum {
@@ -98,7 +99,7 @@ struct io_cq {
  */
 struct io_context {
 	atomic_long_t refcount;
-	atomic_t active_ref;
+	refcount_t active_ref;
 	atomic_t nr_tasks;
 
 	/* all the fields below are protected by this lock */
@@ -130,9 +131,9 @@ struct io_context {
 static inline void get_io_context_active(struct io_context *ioc)
 {
 	WARN_ON_ONCE(atomic_long_read(&ioc->refcount) <= 0);
-	WARN_ON_ONCE(atomic_read(&ioc->active_ref) <= 0);
+	WARN_ON_ONCE(refcount_read(&ioc->active_ref) == 0);
 	atomic_long_inc(&ioc->refcount);
-	atomic_inc(&ioc->active_ref);
+	refcount_inc(&ioc->active_ref);
 }
 
 static inline void ioc_task_link(struct io_context *ioc)
