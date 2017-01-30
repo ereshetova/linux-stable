@@ -33,6 +33,8 @@
 #ifndef IWCM_H
 #define IWCM_H
 
+#include <linux/refcount.h>
+
 enum iw_cm_state {
 	IW_CM_STATE_IDLE,             /* unbound, inactive */
 	IW_CM_STATE_LISTEN,           /* listen waiting for connect */
@@ -52,7 +54,7 @@ struct iwcm_id_private {
 	wait_queue_head_t connect_wait;
 	struct list_head work_list;
 	spinlock_t lock;
-	atomic_t refcount;
+	refcount_t refcount;
 	struct list_head work_free_list;
 };
 
