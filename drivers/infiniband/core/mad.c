@@ -550,7 +550,7 @@ struct ib_mad_agent *ib_register_mad_snoop(struct ib_device *device,
 		goto error3;
 	}
 
-	atomic_set(&mad_snoop_priv->refcount, 1);
+	refcount_set(&mad_snoop_priv->refcount, 1);
 	return &mad_snoop_priv->agent;
 error3:
 	ib_mad_agent_security_cleanup(&mad_snoop_priv->agent);
@@ -569,7 +569,7 @@ static inline void deref_mad_agent(struct ib_mad_agent_private *mad_agent_priv)
 
 static inline void deref_snoop_agent(struct ib_mad_snoop_private *mad_snoop_priv)
 {
-	if (atomic_dec_and_test(&mad_snoop_priv->refcount))
+	if (refcount_dec_and_test(&mad_snoop_priv->refcount))
 		complete(&mad_snoop_priv->comp);
 }
 
@@ -676,7 +676,7 @@ static void snoop_send(struct ib_mad_qp_info *qp_info,
 		    !(mad_snoop_priv->mad_snoop_flags & mad_snoop_flags))
 			continue;
 
-		atomic_inc(&mad_snoop_priv->refcount);
+		refcount_inc(&mad_snoop_priv->refcount);
 		spin_unlock_irqrestore(&qp_info->snoop_lock, flags);
 		mad_snoop_priv->agent.snoop_handler(&mad_snoop_priv->agent,
 						    send_buf, mad_send_wc);
@@ -701,7 +701,7 @@ static void snoop_recv(struct ib_mad_qp_info *qp_info,
 		    !(mad_snoop_priv->mad_snoop_flags & mad_snoop_flags))
 			continue;
 
-		atomic_inc(&mad_snoop_priv->refcount);
+		refcount_inc(&mad_snoop_priv->refcount);
 		spin_unlock_irqrestore(&qp_info->snoop_lock, flags);
 		mad_snoop_priv->agent.recv_handler(&mad_snoop_priv->agent, NULL,
 						   mad_recv_wc);
