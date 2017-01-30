@@ -2757,7 +2757,7 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 	}
 	devr->x0->device = &dev->ib_dev;
 	devr->x0->inode = NULL;
-	atomic_set(&devr->x0->usecnt, 0);
+	refcount_set(&devr->x0->usecnt, 0);
 	mutex_init(&devr->x0->tgt_qp_mutex);
 	INIT_LIST_HEAD(&devr->x0->tgt_qp_list);
 
@@ -2768,7 +2768,7 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 	}
 	devr->x1->device = &dev->ib_dev;
 	devr->x1->inode = NULL;
-	atomic_set(&devr->x1->usecnt, 0);
+	refcount_set(&devr->x1->usecnt, 0);
 	mutex_init(&devr->x1->tgt_qp_mutex);
 	INIT_LIST_HEAD(&devr->x1->tgt_qp_list);
 
@@ -2792,7 +2792,7 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 	devr->s0->srq_type      = IB_SRQT_XRC;
 	devr->s0->ext.xrc.xrcd	= devr->x0;
 	devr->s0->ext.xrc.cq	= devr->c0;
-	atomic_inc(&devr->s0->ext.xrc.xrcd->usecnt);
+	refcount_inc(&devr->s0->ext.xrc.xrcd->usecnt);
 	atomic_inc(&devr->s0->ext.xrc.cq->usecnt);
 	atomic_inc(&devr->p0->usecnt);
 	atomic_set(&devr->s0->usecnt, 0);

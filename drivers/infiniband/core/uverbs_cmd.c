@@ -827,7 +827,7 @@ ssize_t ib_uverbs_open_xrcd(struct ib_uverbs_file *file,
 
 		xrcd->inode   = inode;
 		xrcd->device  = ib_dev;
-		atomic_set(&xrcd->usecnt, 0);
+		refcount_set(&xrcd->usecnt, 0);
 		mutex_init(&xrcd->tgt_qp_mutex);
 		INIT_LIST_HEAD(&xrcd->tgt_qp_list);
 		new_xrcd = 1;
@@ -849,7 +849,7 @@ ssize_t ib_uverbs_open_xrcd(struct ib_uverbs_file *file,
 			if (ret)
 				goto err_insert_xrcd;
 		}
-		atomic_inc(&xrcd->usecnt);
+		refcount_inc(&xrcd->usecnt);
 	}
 
 	if (copy_to_user((void __user *) (unsigned long) cmd.response,
@@ -875,7 +875,7 @@ err_copy:
 	if (inode) {
 		if (new_xrcd)
 			xrcd_table_delete(file->device, inode);
-		atomic_dec(&xrcd->usecnt);
+		refcount_dec(&xrcd->usecnt);
 	}
 
 err_insert_xrcd:
@@ -928,7 +928,7 @@ ssize_t ib_uverbs_close_xrcd(struct ib_uverbs_file *file,
 		goto out;
 	}
 
-	if (!inode || atomic_dec_and_test(&xrcd->usecnt)) {
+	if (!inode || refcount_dec_and_test(&xrcd->usecnt)) {
 		ret = ib_dealloc_xrcd(uobj->object);
 		if (!ret)
 			uobj->live = 0;
@@ -936,7 +936,7 @@ ssize_t ib_uverbs_close_xrcd(struct ib_uverbs_file *file,
 
 	live = uobj->live;
 	if (inode && ret)
-		atomic_inc(&xrcd->usecnt);
+		refcount_inc(&xrcd->usecnt);
 
 	put_uobj_write(uobj);
 
@@ -965,7 +965,7 @@ void ib_uverbs_dealloc_xrcd(struct ib_uverbs_device *dev,
 	struct inode *inode;
 
 	inode = xrcd->inode;
-	if (inode && !atomic_dec_and_test(&xrcd->usecnt))
+	if (inode && !refcount_dec_and_test(&xrcd->usecnt))
 		return;
 
 	ib_dealloc_xrcd(xrcd);
@@ -4069,7 +4069,7 @@ static int __uverbs_create_xsrq(struct ib_uverbs_file *file,
 		srq->ext.xrc.cq   = attr.ext.xrc.cq;
 		srq->ext.xrc.xrcd = attr.ext.xrc.xrcd;
 		atomic_inc(&attr.ext.xrc.cq->usecnt);
-		atomic_inc(&attr.ext.xrc.xrcd->usecnt);
+		refcount_inc(&attr.ext.xrc.xrcd->usecnt);
 	}
 
 	atomic_inc(&pd->usecnt);

@@ -1425,7 +1425,7 @@ struct ib_pd {
 
 struct ib_xrcd {
 	struct ib_device       *device;
-	atomic_t		usecnt; /* count all exposed resources */
+	refcount_t		usecnt; /* count all exposed resources */
 	struct inode	       *inode;
 
 	struct mutex		tgt_qp_mutex;

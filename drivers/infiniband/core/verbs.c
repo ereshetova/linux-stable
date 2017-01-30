@@ -623,7 +623,7 @@ struct ib_srq *ib_create_srq(struct ib_pd *pd,
 		if (srq->srq_type == IB_SRQT_XRC) {
 			srq->ext.xrc.xrcd = srq_init_attr->ext.xrc.xrcd;
 			srq->ext.xrc.cq   = srq_init_attr->ext.xrc.cq;
-			atomic_inc(&srq->ext.xrc.xrcd->usecnt);
+			refcount_inc(&srq->ext.xrc.xrcd->usecnt);
 			atomic_inc(&srq->ext.xrc.cq->usecnt);
 		}
 		atomic_inc(&pd->usecnt);
@@ -674,7 +674,7 @@ int ib_destroy_srq(struct ib_srq *srq)
 	if (!ret) {
 		atomic_dec(&pd->usecnt);
 		if (srq_type == IB_SRQT_XRC) {
-			atomic_dec(&xrcd->usecnt);
+			refcount_dec(&xrcd->usecnt);
 			atomic_dec(&cq->usecnt);
 		}
 	}
@@ -763,7 +763,7 @@ static struct ib_qp *ib_create_xrc_qp(struct ib_qp *qp,
 	qp->send_cq = qp->recv_cq = NULL;
 	qp->srq = NULL;
 	qp->xrcd = qp_init_attr->xrcd;
-	atomic_inc(&qp_init_attr->xrcd->usecnt);
+	refcount_inc(&qp_init_attr->xrcd->usecnt);
 	INIT_LIST_HEAD(&qp->open_list);
 
 	qp = __ib_open_qp(real_qp, qp_init_attr->event_handler,
@@ -1315,7 +1315,7 @@ static int __ib_destroy_shared_qp(struct ib_qp *qp)
 	if (real_qp) {
 		ret = ib_destroy_qp(real_qp);
 		if (!ret)
-			atomic_dec(&xrcd->usecnt);
+			refcount_dec(&xrcd->usecnt);
 		else
 			__ib_insert_xrcd_qp(xrcd, real_qp);
 	}
@@ -1556,7 +1556,7 @@ struct ib_xrcd *ib_alloc_xrcd(struct ib_device *device)
 	if (!IS_ERR(xrcd)) {
 		xrcd->device = device;
 		xrcd->inode = NULL;
-		atomic_set(&xrcd->usecnt, 0);
+		refcount_set(&xrcd->usecnt, 0);
 		mutex_init(&xrcd->tgt_qp_mutex);
 		INIT_LIST_HEAD(&xrcd->tgt_qp_list);
 	}
@@ -1570,7 +1570,7 @@ int ib_dealloc_xrcd(struct ib_xrcd *xrcd)
 	struct ib_qp *qp;
 	int ret;
 
-	if (atomic_read(&xrcd->usecnt))
+	if (refcount_read(&xrcd->usecnt))
 		return -EBUSY;
 
 	while (!list_empty(&xrcd->tgt_qp_list)) {
