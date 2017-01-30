@@ -211,14 +211,14 @@ static struct rdma_addr_client self;
 
 void rdma_addr_register_client(struct rdma_addr_client *client)
 {
-	atomic_set(&client->refcount, 1);
+	refcount_set(&client->refcount, 1);
 	init_completion(&client->comp);
 }
 EXPORT_SYMBOL(rdma_addr_register_client);
 
 static inline void put_client(struct rdma_addr_client *client)
 {
-	if (atomic_dec_and_test(&client->refcount))
+	if (refcount_dec_and_test(&client->refcount))
 		complete(&client->comp);
 }
 
@@ -679,7 +679,7 @@ int rdma_resolve_ip(struct rdma_addr_client *client,
 	req->callback = callback;
 	req->context = context;
 	req->client = client;
-	atomic_inc(&client->refcount);
+	refcount_inc(&client->refcount);
 	INIT_DELAYED_WORK(&req->work, process_one_req);
 	req->seq = (u32)atomic_inc_return(&ib_nl_addr_request_seq);
 
@@ -695,7 +695,7 @@ int rdma_resolve_ip(struct rdma_addr_client *client,
 		break;
 	default:
 		ret = req->status;
-		atomic_dec(&client->refcount);
+		refcount_dec(&client->refcount);
 		goto err;
 	}
 	return ret;

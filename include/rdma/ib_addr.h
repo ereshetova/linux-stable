@@ -41,6 +41,7 @@
 #include <linux/inetdevice.h>
 #include <linux/socket.h>
 #include <linux/if_vlan.h>
+#include <linux/refcount.h>
 #include <net/ipv6.h>
 #include <net/if_inet6.h>
 #include <net/ip.h>
@@ -50,7 +51,7 @@
 #include <net/net_namespace.h>
 
 struct rdma_addr_client {
-	atomic_t refcount;
+	refcount_t refcount;
 	struct completion comp;
 };
 
