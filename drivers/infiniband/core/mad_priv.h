@@ -38,6 +38,7 @@
 
 #include <linux/completion.h>
 #include <linux/err.h>
+#include <linux/refcount.h>
 #include <linux/workqueue.h>
 #include <rdma/ib_mad.h>
 #include <rdma/ib_smi.h>
@@ -104,7 +105,7 @@ struct ib_mad_agent_private {
 	struct work_struct local_work;
 	struct list_head rmpp_list;
 
-	atomic_t refcount;
+	refcount_t refcount;
 	struct completion comp;
 };
 
