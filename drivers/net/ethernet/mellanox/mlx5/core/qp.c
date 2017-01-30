@@ -49,7 +49,7 @@ static struct mlx5_core_rsc_common *mlx5_get_rsc(struct mlx5_core_dev *dev,
 
 	common = radix_tree_lookup(&table->tree, rsn);
 	if (common)
-		atomic_inc(&common->refcount);
+		refcount_inc(&common->refcount);
 
 	spin_unlock(&table->lock);
 
@@ -63,7 +63,7 @@ static struct mlx5_core_rsc_common *mlx5_get_rsc(struct mlx5_core_dev *dev,
 
 void mlx5_core_put_rsc(struct mlx5_core_rsc_common *common)
 {
-	if (atomic_dec_and_test(&common->refcount))
+	if (refcount_dec_and_test(&common->refcount))
 		complete(&common->free);
 }
 
@@ -158,7 +158,7 @@ static int create_qprqsq_common(struct mlx5_core_dev *dev,
 	if (err)
 		return err;
 
-	atomic_set(&qp->common.refcount, 1);
+	refcount_set(&qp->common.refcount, 1);
 	init_completion(&qp->common.free);
 	qp->pid = current->pid;
 

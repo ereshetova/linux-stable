@@ -192,7 +192,7 @@ static void handle_responder(struct ib_wc *wc, struct mlx5_cqe64 *cqe,
 			wqe_ctr = be16_to_cpu(cqe->wqe_counter);
 			wc->wr_id = srq->wrid[wqe_ctr];
 			mlx5_ib_free_srq_wqe(srq, wqe_ctr);
-			if (msrq && atomic_dec_and_test(&msrq->refcount))
+			if (msrq && refcount_dec_and_test(&msrq->refcount))
 				complete(&msrq->free);
 		}
 	} else {
