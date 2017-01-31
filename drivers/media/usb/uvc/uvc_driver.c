@@ -1842,7 +1842,7 @@ static void uvc_release(struct video_device *vdev)
 	/* Decrement the registered streams count and delete the device when it
 	 * reaches zero.
 	 */
-	if (atomic_dec_and_test(&dev->nstreams))
+	if (refcount_dec_and_test(&dev->nstreams))
 		uvc_delete(dev);
 }
 
@@ -1858,7 +1858,7 @@ static void uvc_unregister_video(struct uvc_device *dev)
 	 * that, increment the stream count before iterating over the streams
 	 * and decrement it when done.
 	 */
-	atomic_inc(&dev->nstreams);
+	refcount_inc(&dev->nstreams);
 
 	list_for_each_entry(stream, &dev->streams, list) {
 		if (!video_is_registered(&stream->vdev))
@@ -1872,7 +1872,7 @@ static void uvc_unregister_video(struct uvc_device *dev)
 	/* Decrement the stream count and call uvc_delete explicitly if there
 	 * are no stream left.
 	 */
-	if (atomic_dec_and_test(&dev->nstreams))
+	if (refcount_dec_and_test(&dev->nstreams))
 		uvc_delete(dev);
 }
 
@@ -1931,7 +1931,7 @@ static int uvc_register_video(struct uvc_device *dev,
 	else
 		stream->chain->caps |= V4L2_CAP_VIDEO_OUTPUT;
 
-	atomic_inc(&dev->nstreams);
+	refcount_inc(&dev->nstreams);
 	return 0;
 }
 
@@ -2015,7 +2015,7 @@ static int uvc_probe(struct usb_interface *intf,
 	INIT_LIST_HEAD(&dev->entities);
 	INIT_LIST_HEAD(&dev->chains);
 	INIT_LIST_HEAD(&dev->streams);
-	atomic_set(&dev->nstreams, 0);
+	refcount_set(&dev->nstreams, 0);
 	refcount_set(&dev->nmappings, 0);
 	mutex_init(&dev->lock);
 
