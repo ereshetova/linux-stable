@@ -12,6 +12,7 @@
 #include <linux/kthread.h>
 #include <linux/ktime.h>
 #include <linux/blk-mq.h>
+#include <linux/refcount.h>
 
 #include <trace/events/block.h>
 
@@ -52,7 +53,7 @@ struct mapped_device {
 	struct mutex type_lock;
 
 	atomic_t holders;
-	atomic_t open_count;
+	refcount_t open_count;
 
 	struct dm_target *immutable_target;
 	struct target_type *immutable_target_type;

@@ -312,7 +312,7 @@ static int dm_blk_open(struct block_device *bdev, fmode_t mode)
 	}
 
 	dm_get(md);
-	atomic_inc(&md->open_count);
+	refcount_inc(&md->open_count);
 out:
 	spin_unlock(&_minor_lock);
 
@@ -329,7 +329,7 @@ static void dm_blk_close(struct gendisk *disk, fmode_t mode)
 	if (WARN_ON(!md))
 		goto out;
 
-	if (atomic_dec_and_test(&md->open_count) &&
+	if (refcount_dec_and_test(&md->open_count) &&
 	    (test_bit(DMF_DEFERRED_REMOVE, &md->flags)))
 		queue_work(deferred_remove_workqueue, &deferred_remove_work);
 
@@ -340,7 +340,7 @@ out:
 
 int dm_open_count(struct mapped_device *md)
 {
-	return atomic_read(&md->open_count);
+	return refcount_read(&md->open_count);
 }
 
 /*
@@ -1484,7 +1484,7 @@ static struct mapped_device *alloc_dev(int minor)
 	mutex_init(&md->table_devices_lock);
 	spin_lock_init(&md->deferred_lock);
 	atomic_set(&md->holders, 1);
-	atomic_set(&md->open_count, 0);
+	refcount_set(&md->open_count, 0);
 	atomic_set(&md->event_nr, 0);
 	atomic_set(&md->uevent_seq, 0);
 	INIT_LIST_HEAD(&md->uevent_list);
