@@ -3752,7 +3752,7 @@ int nes_manage_apbvt(struct nes_vnic *nesvnic, u32 accel_local_port,
 
 	nes_debug(NES_DBG_QP, "Waiting for CQP completion for APBVT.\n");
 
-	atomic_set(&cqp_request->refcount, 2);
+	refcount_set(&cqp_request->refcount, 2);
 	nes_post_cqp_request(nesdev, cqp_request);
 
 	if (add_port == NES_MANAGE_APBVT_ADD)
@@ -3822,7 +3822,7 @@ void nes_manage_arp_cache(struct net_device *netdev, unsigned char *mac_addr,
 	nes_debug(NES_DBG_NETDEV, "Not waiting for CQP, cqp.sq_head=%u, cqp.sq_tail=%u\n",
 			nesdev->cqp.sq_head, nesdev->cqp.sq_tail);
 
-	atomic_set(&cqp_request->refcount, 1);
+	refcount_set(&cqp_request->refcount, 1);
 	nes_post_cqp_request(nesdev, cqp_request);
 }
 
@@ -3846,7 +3846,7 @@ void flush_wqes(struct nes_device *nesdev, struct nes_qp *nesqp,
 	}
 	if (wait_completion) {
 		cqp_request->waiting = 1;
-		atomic_set(&cqp_request->refcount, 2);
+		refcount_set(&cqp_request->refcount, 2);
 	} else {
 		cqp_request->waiting = 0;
 	}

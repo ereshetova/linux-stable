@@ -472,7 +472,7 @@ static int forward_fpdus(struct nes_vnic *nesvnic, struct nes_qp *nesqp)
 		cqp_request->callback = 1;
 		cqp_request->cqp_callback = nes_download_callback;
 
-		atomic_set(&cqp_request->refcount, 1);
+		refcount_set(&cqp_request->refcount, 1);
 		nes_post_cqp_request(nesdev, cqp_request);
 		spin_unlock_irqrestore(&nesqp->pau_lock, flags);
 	}
@@ -696,7 +696,7 @@ static void nes_chg_qh_handler(struct nes_device *nesdev, struct nes_cqp_request
 		new_request->cqp_callback_pointer = qh_chg;
 		new_request->callback = 1;
 		new_request->cqp_callback = nes_chg_qh_handler;
-		atomic_set(&new_request->refcount, 1);
+		refcount_set(&new_request->refcount, 1);
 		nes_post_cqp_request(nesdev, new_request);
 		break;
 
@@ -752,7 +752,7 @@ static int nes_change_quad_hash(struct nes_device *nesdev,
 	cqp_request->cqp_callback_pointer = qh_chg;
 	cqp_request->callback = 1;
 	cqp_request->cqp_callback = nes_chg_qh_handler;
-	atomic_set(&cqp_request->refcount, 1);
+	refcount_set(&cqp_request->refcount, 1);
 	nes_post_cqp_request(nesdev, cqp_request);
 
 	return ret;

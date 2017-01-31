@@ -124,7 +124,7 @@ static struct ib_mw *nes_alloc_mw(struct ib_pd *ibpd, enum ib_mw_type type,
 	set_wqe_32bit_value(cqp_wqe->wqe_words, NES_CQP_STAG_WQE_LEN_HIGH_PD_IDX, (nespd->pd_id & 0x00007fff));
 	set_wqe_32bit_value(cqp_wqe->wqe_words, NES_CQP_STAG_WQE_STAG_IDX, stag);
 
-	atomic_set(&cqp_request->refcount, 2);
+	refcount_set(&cqp_request->refcount, 2);
 	nes_post_cqp_request(nesdev, cqp_request);
 
 	/* Wait for CQP */
@@ -181,7 +181,7 @@ static int nes_dealloc_mw(struct ib_mw *ibmw)
 	set_wqe_32bit_value(cqp_wqe->wqe_words, NES_CQP_WQE_OPCODE_IDX, NES_CQP_DEALLOCATE_STAG);
 	set_wqe_32bit_value(cqp_wqe->wqe_words, NES_CQP_STAG_WQE_STAG_IDX, ibmw->rkey);
 
-	atomic_set(&cqp_request->refcount, 2);
+	refcount_set(&cqp_request->refcount, 2);
 	nes_post_cqp_request(nesdev, cqp_request);
 
 	/* Wait for CQP */
@@ -274,7 +274,7 @@ static int alloc_fast_reg_mr(struct nes_device *nesdev, struct nes_pd *nespd,
 	cqp_wqe->wqe_words[NES_CQP_WQE_OPCODE_IDX] |= cpu_to_le32(NES_CQP_STAG_PBL_BLK_SIZE);
 	barrier();
 
-	atomic_set(&cqp_request->refcount, 2);
+	refcount_set(&cqp_request->refcount, 2);
 	nes_post_cqp_request(nesdev, cqp_request);
 
 	/* Wait for CQP */
@@ -1249,7 +1249,7 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 			u64temp = (u64)nesqp->nesqp_context_pbase;
 			set_wqe_64bit_value(cqp_wqe->wqe_words, NES_CQP_QP_WQE_CONTEXT_LOW_IDX, u64temp);
 
-			atomic_set(&cqp_request->refcount, 2);
+			refcount_set(&cqp_request->refcount, 2);
 			nes_post_cqp_request(nesdev, cqp_request);
 
 			/* Wait for CQP */
@@ -1631,7 +1631,7 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev,
 	cqp_wqe->wqe_words[NES_CQP_CQ_WQE_CQ_CONTEXT_HIGH_IDX] =
 			cpu_to_le32(((u32)((u64temp) >> 33)) & 0x7FFFFFFF);
 
-	atomic_set(&cqp_request->refcount, 2);
+	refcount_set(&cqp_request->refcount, 2);
 	nes_post_cqp_request(nesdev, cqp_request);
 
 	/* Wait for CQP */
@@ -1735,7 +1735,7 @@ static int nes_destroy_cq(struct ib_cq *ib_cq)
 	if (!nescq->mcrqf)
 		nes_free_resource(nesadapter, nesadapter->allocated_cqs, nescq->hw_cq.cq_number);
 
-	atomic_set(&cqp_request->refcount, 2);
+	refcount_set(&cqp_request->refcount, 2);
 	nes_post_cqp_request(nesdev, cqp_request);
 
 	/* Wait for CQP */
@@ -1947,7 +1947,7 @@ static int nes_reg_mr(struct nes_device *nesdev, struct nes_pd *nespd,
 	}
 	barrier();
 
-	atomic_set(&cqp_request->refcount, 2);
+	refcount_set(&cqp_request->refcount, 2);
 	nes_post_cqp_request(nesdev, cqp_request);
 
 	/* Wait for CQP */
@@ -2515,7 +2515,7 @@ static int nes_dereg_mr(struct ib_mr *ib_mr)
 			NES_CQP_STAG_DEALLOC_PBLS | NES_CQP_STAG_MR);
 	set_wqe_32bit_value(cqp_wqe->wqe_words, NES_CQP_STAG_WQE_STAG_IDX, ib_mr->rkey);
 
-	atomic_set(&cqp_request->refcount, 2);
+	refcount_set(&cqp_request->refcount, 2);
 	nes_post_cqp_request(nesdev, cqp_request);
 
 	/* Wait for CQP */
@@ -2692,7 +2692,7 @@ int nes_hw_modify_qp(struct nes_device *nesdev, struct nes_qp *nesqp,
 		set_wqe_32bit_value(cqp_wqe->wqe_words, NES_CQP_QP_WQE_NEW_MSS_IDX, termlen);
 	}
 
-	atomic_set(&cqp_request->refcount, 2);
+	refcount_set(&cqp_request->refcount, 2);
 	nes_post_cqp_request(nesdev, cqp_request);
 
 	/* Wait for CQP */

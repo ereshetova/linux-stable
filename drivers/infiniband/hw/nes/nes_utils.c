@@ -617,7 +617,7 @@ void nes_free_cqp_request(struct nes_device *nesdev,
 void nes_put_cqp_request(struct nes_device *nesdev,
 			 struct nes_cqp_request *cqp_request)
 {
-	if (atomic_dec_and_test(&cqp_request->refcount))
+	if (refcount_dec_and_test(&cqp_request->refcount))
 		nes_free_cqp_request(nesdev, cqp_request);
 }
 
@@ -656,7 +656,7 @@ void nes_post_cqp_request(struct nes_device *nesdev,
 			opcode & NES_CQP_OPCODE_MASK,
 			le32_to_cpu(cqp_wqe->wqe_words[NES_CQP_WQE_ID_IDX]), cqp_request,
 			nesdev->cqp.sq_head, nesdev->cqp.sq_tail, nesdev->cqp.sq_size,
-			cqp_request->waiting, atomic_read(&cqp_request->refcount));
+			cqp_request->waiting, refcount_read(&cqp_request->refcount));
 
 		barrier();
 

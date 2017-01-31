@@ -33,6 +33,8 @@
 #ifndef __NES_HW_H
 #define __NES_HW_H
 
+#include <linux/refcount.h>
+
 #define NES_PHY_TYPE_CX4       1
 #define NES_PHY_TYPE_1G        2
 #define NES_PHY_TYPE_ARGUS     4
@@ -880,7 +882,7 @@ struct nes_cqp_request {
 	wait_queue_head_t     waitq;
 	struct nes_hw_cqp_wqe cqp_wqe;
 	struct list_head      list;
-	atomic_t              refcount;
+	refcount_t              refcount;
 	void (*cqp_callback)(struct nes_device *nesdev, struct nes_cqp_request *cqp_request);
 	u16                   major_code;
 	u16                   minor_code;
