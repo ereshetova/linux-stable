@@ -1185,7 +1185,7 @@ static struct nes_cm_listener *find_listener(struct nes_cm_core *cm_core,
 		     listen_addr == 0x00000000) &&
 		    (listen_port == dst_port) &&
 		    (listener_state & listen_node->listener_state)) {
-			atomic_inc(&listen_node->ref_count);
+			refcount_inc(&listen_node->ref_count);
 			spin_unlock_irqrestore(&cm_core->listen_list_lock, flags);
 			return listen_node;
 		}
@@ -1239,7 +1239,7 @@ static int mini_cm_dec_refcnt_listen(struct nes_cm_core *cm_core,
 
 	nes_debug(NES_DBG_CM, "attempting listener= %p free_nodes= %d, "
 		  "refcnt=%d\n", listener, free_hanging_nodes,
-		  atomic_read(&listener->ref_count));
+		  refcount_read(&listener->ref_count));
 	/* free non-accelerated child nodes for this listener */
 	INIT_LIST_HEAD(&reset_list);
 	if (free_hanging_nodes) {
@@ -1308,7 +1308,7 @@ static int mini_cm_dec_refcnt_listen(struct nes_cm_core *cm_core,
 	}
 
 	spin_lock_irqsave(&cm_core->listen_list_lock, flags);
-	if (!atomic_dec_return(&listener->ref_count)) {
+	if (refcount_dec_and_test(&listener->ref_count)) {
 		list_del(&listener->list);
 
 		/* decrement our listen node count */
@@ -2268,7 +2268,7 @@ static struct nes_cm_listener *mini_cm_listen(struct nes_cm_core *cm_core,
 
 	if (listener && listener->listener_state == NES_CM_LISTENER_ACTIVE_STATE) {
 		/* find automatically incs ref count ??? */
-		atomic_dec(&listener->ref_count);
+		refcount_dec(&listener->ref_count);
 		nes_debug(NES_DBG_CM, "Not creating listener since it already exists\n");
 		return NULL;
 	}
@@ -2283,7 +2283,7 @@ static struct nes_cm_listener *mini_cm_listen(struct nes_cm_core *cm_core,
 		listener->loc_port = cm_info->loc_port;
 		listener->reused_node = 0;
 
-		atomic_set(&listener->ref_count, 1);
+		refcount_set(&listener->ref_count, 1);
 	}
 	/* pasive case */
 	/* find already inc'ed the ref count */
@@ -2618,7 +2618,7 @@ static int mini_cm_recv_pkt(struct nes_cm_core *cm_core,
 				nes_debug(NES_DBG_CM, "Unable to allocate "
 					  "node\n");
 				cm_packets_dropped++;
-				atomic_dec(&listener->ref_count);
+				refcount_dec(&listener->ref_count);
 				dev_kfree_skb_any(skb);
 				break;
 			}
