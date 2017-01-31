@@ -732,7 +732,7 @@ static void __flush_qp(struct iwch_qp *qhp, struct iwch_cq *rchp,
 
 	pr_debug("%s qhp %p rchp %p schp %p\n", __func__, qhp, rchp, schp);
 	/* take a ref on the qhp since we must release the lock */
-	atomic_inc(&qhp->refcnt);
+	refcount_inc(&qhp->refcnt);
 	spin_unlock(&qhp->lock);
 
 	/* locking hierarchy: cq lock first, then qp lock. */
@@ -764,7 +764,7 @@ static void __flush_qp(struct iwch_qp *qhp, struct iwch_cq *rchp,
 	}
 
 	/* deref */
-	if (atomic_dec_and_test(&qhp->refcnt))
+	if (refcount_dec_and_test(&qhp->refcnt))
 	        wake_up(&qhp->wait);
 
 	spin_lock(&qhp->lock);

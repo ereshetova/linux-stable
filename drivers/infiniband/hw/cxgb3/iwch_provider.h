@@ -166,7 +166,7 @@ struct iwch_qp {
 	struct iwch_qp_attributes attr;
 	struct t3_wq wq;
 	spinlock_t lock;
-	atomic_t refcnt;
+	refcount_t refcnt;
 	wait_queue_head_t wait;
 	enum IWCH_QP_FLAGS flags;
 };

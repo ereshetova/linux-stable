@@ -806,8 +806,8 @@ static int iwch_destroy_qp(struct ib_qp *ib_qp)
 
 	remove_handle(rhp, &rhp->qpidr, qhp->wq.qpid);
 
-	atomic_dec(&qhp->refcnt);
-	wait_event(qhp->wait, !atomic_read(&qhp->refcnt));
+	refcount_dec(&qhp->refcnt);
+	wait_event(qhp->wait, !refcount_read(&qhp->refcnt));
 
 	ucontext = ib_qp->uobject ? to_iwch_ucontext(ib_qp->uobject->context)
 				  : NULL;
@@ -917,7 +917,7 @@ static struct ib_qp *iwch_create_qp(struct ib_pd *pd,
 
 	spin_lock_init(&qhp->lock);
 	init_waitqueue_head(&qhp->wait);
-	atomic_set(&qhp->refcnt, 1);
+	refcount_set(&qhp->refcnt, 1);
 
 	if (insert_handle(rhp, &rhp->qpidr, qhp, qhp->wq.qpid)) {
 		cxio_destroy_qp(&rhp->rdev, &qhp->wq,
@@ -1018,13 +1018,13 @@ static int iwch_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 void iwch_qp_add_ref(struct ib_qp *qp)
 {
 	pr_debug("%s ib_qp %p\n", __func__, qp);
-	atomic_inc(&(to_iwch_qp(qp)->refcnt));
+	refcount_inc(&(to_iwch_qp(qp)->refcnt));
 }
 
 void iwch_qp_rem_ref(struct ib_qp *qp)
 {
 	pr_debug("%s ib_qp %p\n", __func__, qp);
-	if (atomic_dec_and_test(&(to_iwch_qp(qp)->refcnt)))
+	if (refcount_dec_and_test(&(to_iwch_qp(qp)->refcnt)))
 	        wake_up(&(to_iwch_qp(qp)->wait));
 }
 
