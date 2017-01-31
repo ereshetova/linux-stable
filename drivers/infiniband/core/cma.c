@@ -43,6 +43,7 @@
 #include <linux/inetdevice.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/refcount.h>
 #include <net/route.h>
 
 #include <net/net_namespace.h>
@@ -196,7 +197,7 @@ struct cma_device {
 	struct list_head	list;
 	struct ib_device	*device;
 	struct completion	comp;
-	atomic_t		refcount;
+	refcount_t		refcount;
 	struct list_head	id_list;
 	enum ib_gid_type	*default_gid_type;
 	u8			*default_roce_tos;
@@ -245,7 +246,7 @@ enum {
 
 void cma_ref_dev(struct cma_device *cma_dev)
 {
-	atomic_inc(&cma_dev->refcount);
+	refcount_inc(&cma_dev->refcount);
 }
 
 struct cma_device *cma_enum_devices_by_ibdev(cma_device_filter	filter,
@@ -518,7 +519,7 @@ static void cma_attach_to_dev(struct rdma_id_private *id_priv,
 
 void cma_deref_dev(struct cma_device *cma_dev)
 {
-	if (atomic_dec_and_test(&cma_dev->refcount))
+	if (refcount_dec_and_test(&cma_dev->refcount))
 		complete(&cma_dev->comp);
 }
 
@@ -4291,7 +4292,7 @@ static void cma_add_one(struct ib_device *device)
 	}
 
 	init_completion(&cma_dev->comp);
-	atomic_set(&cma_dev->refcount, 1);
+	refcount_set(&cma_dev->refcount, 1);
 	INIT_LIST_HEAD(&cma_dev->id_list);
 	ib_set_client_data(device, &cma_client, cma_dev);
 
