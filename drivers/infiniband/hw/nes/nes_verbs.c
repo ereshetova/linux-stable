@@ -577,7 +577,7 @@ static struct ib_ucontext *nes_alloc_ucontext(struct ib_device *ibdev,
 
 	INIT_LIST_HEAD(&nes_ucontext->cq_reg_mem_list);
 	INIT_LIST_HEAD(&nes_ucontext->qp_reg_mem_list);
-	atomic_set(&nes_ucontext->usecnt, 1);
+	refcount_set(&nes_ucontext->usecnt, 1);
 	return &nes_ucontext->ibucontext;
 }
 
@@ -591,7 +591,7 @@ static int nes_dealloc_ucontext(struct ib_ucontext *context)
 	/* struct nes_device *nesdev = nesvnic->nesdev; */
 	struct nes_ucontext *nes_ucontext = to_nesucontext(context);
 
-	if (!atomic_dec_and_test(&nes_ucontext->usecnt))
+	if (!refcount_dec_and_test(&nes_ucontext->usecnt))
 	  return 0;
 	kfree(nes_ucontext);
 	return 0;
