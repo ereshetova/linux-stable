@@ -150,7 +150,7 @@ void c4iw_ev_dispatch(struct c4iw_dev *dev, struct t4_cqe *err_cqe)
 	}
 
 	c4iw_qp_add_ref(&qhp->ibqp);
-	atomic_inc(&chp->refcnt);
+	refcount_inc(&chp->refcnt);
 	spin_unlock_irq(&dev->lock);
 
 	/* Bad incoming write */
@@ -212,7 +212,7 @@ void c4iw_ev_dispatch(struct c4iw_dev *dev, struct t4_cqe *err_cqe)
 		break;
 	}
 done:
-	if (atomic_dec_and_test(&chp->refcnt))
+	if (refcount_dec_and_test(&chp->refcnt))
 		wake_up(&chp->wait);
 	c4iw_qp_rem_ref(&qhp->ibqp);
 out:
@@ -227,13 +227,13 @@ int c4iw_ev_handler(struct c4iw_dev *dev, u32 qid)
 	spin_lock_irqsave(&dev->lock, flag);
 	chp = get_chp(dev, qid);
 	if (chp) {
-		atomic_inc(&chp->refcnt);
+		refcount_inc(&chp->refcnt);
 		spin_unlock_irqrestore(&dev->lock, flag);
 		t4_clear_cq_armed(&chp->cq);
 		spin_lock_irqsave(&chp->comp_handler_lock, flag);
 		(*chp->ibcq.comp_handler)(&chp->ibcq, chp->ibcq.cq_context);
 		spin_unlock_irqrestore(&chp->comp_handler_lock, flag);
-		if (atomic_dec_and_test(&chp->refcnt))
+		if (refcount_dec_and_test(&chp->refcnt))
 			wake_up(&chp->wait);
 	} else {
 		pr_warn("%s unknown cqid 0x%x\n", __func__, qid);
