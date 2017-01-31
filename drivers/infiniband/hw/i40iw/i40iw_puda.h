@@ -35,6 +35,8 @@
 #ifndef I40IW_PUDA_H
 #define I40IW_PUDA_H
 
+#include <linux/refcount.h>
+
 #define I40IW_IEQ_MPA_FRAMING 6
 
 struct i40iw_sc_dev;
@@ -90,7 +92,7 @@ struct i40iw_puda_buf {
 	u8 tcphlen;		/* tcp length in bytes */
 	u8 maclen;		/* mac length in bytes */
 	u32 totallen;		/* machlen+iphlen+tcphlen+datalen */
-	atomic_t refcount;
+	refcount_t refcount;
 	u8 hdrlen;
 	bool ipv4;
 	u32 seqnum;
