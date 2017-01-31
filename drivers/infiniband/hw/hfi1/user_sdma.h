@@ -48,6 +48,8 @@
  */
 #include <linux/device.h>
 #include <linux/wait.h>
+#include <linux/refcount.h>
+
 
 #include "common.h"
 #include "iowait.h"
@@ -151,7 +153,7 @@ struct hfi1_user_sdma_comp_q {
 struct sdma_mmu_node {
 	struct mmu_rb_node rb;
 	struct hfi1_user_sdma_pkt_q *pq;
-	atomic_t refcount;
+	refcount_t refcount;
 	struct page **pages;
 	unsigned int npages;
 };

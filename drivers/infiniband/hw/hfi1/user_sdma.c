@@ -1013,7 +1013,7 @@ static int pin_vector_pages(struct user_sdma_request *req,
 	if (rb_node) {
 		node = container_of(rb_node, struct sdma_mmu_node, rb);
 		if (!extracted) {
-			atomic_inc(&node->refcount);
+			refcount_inc(&node->refcount);
 			iovec->pages = node->pages;
 			iovec->npages = node->npages;
 			iovec->node = node;
@@ -1028,7 +1028,7 @@ static int pin_vector_pages(struct user_sdma_request *req,
 
 		node->rb.addr = (unsigned long)iovec->iov.iov_base;
 		node->pq = pq;
-		atomic_set(&node->refcount, 0);
+		refcount_set(&node->refcount, 1);
 	}
 
 	iov = &iovec->iov;
@@ -1452,7 +1452,7 @@ static void user_sdma_free_request(struct user_sdma_request *req, bool unpin)
 			hfi1_mmu_rb_remove(req->pq->handler,
 					   &node->rb);
 		else
-			atomic_dec(&node->refcount);
+			refcount_dec(&node->refcount);
 	}
 
 	kfree(req->tids);
@@ -1483,7 +1483,7 @@ static int sdma_rb_insert(void *arg, struct mmu_rb_node *mnode)
 	struct sdma_mmu_node *node =
 		container_of(mnode, struct sdma_mmu_node, rb);
 
-	atomic_inc(&node->refcount);
+	refcount_inc(&node->refcount);
 	return 0;
 }
 
@@ -1500,7 +1500,7 @@ static int sdma_rb_evict(void *arg, struct mmu_rb_node *mnode,
 	struct evict_data *evict_data = evict_arg;
 
 	/* is this node still being used? */
-	if (atomic_read(&node->refcount))
+	if (refcount_read(&node->refcount) > 1)
 		return 0; /* keep this node */
 
 	/* this node will be evicted, add its pages to our count */
@@ -1527,7 +1527,7 @@ static int sdma_rb_invalidate(void *arg, struct mmu_rb_node *mnode)
 	struct sdma_mmu_node *node =
 		container_of(mnode, struct sdma_mmu_node, rb);
 
-	if (!atomic_read(&node->refcount))
+	if (refcount_read(&node->refcount) == 1)
 		return 1;
 	return 0;
 }
