@@ -38,6 +38,7 @@
 #include <linux/mlx4/cmd.h>
 #include <linux/rbtree.h>
 #include <linux/delay.h>
+#include <linux/refcount.h>
 
 #include "mlx4_ib.h"
 
@@ -121,7 +122,7 @@ struct mcast_group {
 	   2. Each invocation of the worker thread
 	   3. Membership of the port at the SA
 	*/
-	atomic_t		refcount;
+	refcount_t		refcount;
 
 	/* delayed work to clean pending SM request */
 	struct delayed_work	timeout_work;
@@ -138,9 +139,9 @@ struct mcast_req {
 };
 
 
-#define safe_atomic_dec(ref) \
+#define safe_refcount_dec(ref) \
 	do {\
-		if (atomic_dec_and_test(ref)) \
+		if (refcount_dec_and_test(ref)) \
 			mcg_warn_group(group, "did not expect to reach zero\n"); \
 	} while (0)
 
@@ -441,11 +442,11 @@ static int release_group(struct mcast_group *group, int from_timeout_handler)
 
 	mutex_lock(&ctx->mcg_table_lock);
 	mutex_lock(&group->lock);
-	if (atomic_dec_and_test(&group->refcount)) {
+	if (refcount_dec_and_test(&group->refcount)) {
 		if (!from_timeout_handler) {
 			if (group->state != MCAST_IDLE &&
 			    !cancel_delayed_work(&group->timeout_work)) {
-				atomic_inc(&group->refcount);
+				refcount_inc(&group->refcount);
 				mutex_unlock(&group->lock);
 				mutex_unlock(&ctx->mcg_table_lock);
 				return 0;
@@ -574,9 +575,9 @@ static void mlx4_ib_mcg_timeout_handler(struct work_struct *work)
 	} else
 		mcg_warn_group(group, "invalid state %s\n", get_state_string(group->state));
 	group->state = MCAST_IDLE;
-	atomic_inc(&group->refcount);
+	refcount_inc(&group->refcount);
 	if (!queue_work(group->demux->mcg_wq, &group->work))
-		safe_atomic_dec(&group->refcount);
+		safe_refcount_dec(&group->refcount);
 
 	mutex_unlock(&group->lock);
 }
@@ -775,7 +776,7 @@ static struct mcast_group *search_relocate_mgid0_group(struct mlx4_ib_demux_ctx 
 					return NULL;
 				}
 
-				atomic_inc(&group->refcount);
+				refcount_inc(&group->refcount);
 				add_sysfs_port_mcg_attr(ctx->dev, ctx->port, &group->dentry.attr);
 				mutex_unlock(&group->lock);
 				mutex_unlock(&ctx->mcg_table_lock);
@@ -862,7 +863,7 @@ static struct mcast_group *acquire_group(struct mlx4_ib_demux_ctx *ctx,
 	add_sysfs_port_mcg_attr(ctx->dev, ctx->port, &group->dentry.attr);
 
 found:
-	atomic_inc(&group->refcount);
+	refcount_inc(&group->refcount);
 	return group;
 }
 
@@ -870,13 +871,13 @@ static void queue_req(struct mcast_req *req)
 {
 	struct mcast_group *group = req->group;
 
-	atomic_inc(&group->refcount); /* for the request */
-	atomic_inc(&group->refcount); /* for scheduling the work */
+	refcount_inc(&group->refcount); /* for the request */
+	refcount_inc(&group->refcount); /* for scheduling the work */
 	list_add_tail(&req->group_list, &group->pending_list);
 	list_add_tail(&req->func_list, &group->func[req->func].pending);
 	/* calls mlx4_ib_mcg_work_handler */
 	if (!queue_work(group->demux->mcg_wq, &group->work))
-		safe_atomic_dec(&group->refcount);
+		safe_refcount_dec(&group->refcount);
 }
 
 int mlx4_ib_mcg_demux_handler(struct ib_device *ibdev, int port, int slave,
@@ -910,9 +911,9 @@ int mlx4_ib_mcg_demux_handler(struct ib_device *ibdev, int port, int slave,
 		group->prev_state = group->state;
 		group->state = MCAST_RESP_READY;
 		/* calls mlx4_ib_mcg_work_handler */
-		atomic_inc(&group->refcount);
+		refcount_inc(&group->refcount);
 		if (!queue_work(ctx->mcg_wq, &group->work))
-			safe_atomic_dec(&group->refcount);
+			safe_refcount_dec(&group->refcount);
 		mutex_unlock(&group->lock);
 		release_group(group, 0);
 		return 1; /* consumed */
@@ -1014,7 +1015,7 @@ static ssize_t sysfs_show_group(struct device *dev,
 	len += sprintf(buf + len, "%1d [%02d,%02d,%02d] %4d %4s %5s     ",
 			group->rec.scope_join_state & 0xf,
 			group->members[2], group->members[1], group->members[0],
-			atomic_read(&group->refcount),
+			refcount_read(&group->refcount),
 			pending_str,
 			state_str);
 	for (f = 0; f < MAX_VFS; ++f)
@@ -1101,10 +1102,9 @@ static void _mlx4_ib_mcg_port_cleanup(struct mlx4_ib_demux_ctx *ctx, int destroy
 	mutex_lock(&ctx->mcg_table_lock);
 	while ((p = rb_first(&ctx->mcg_table)) != NULL) {
 		group = rb_entry(p, struct mcast_group, node);
-		if (atomic_read(&group->refcount))
+		if (refcount_read(&group->refcount))
 			mcg_debug_group(group, "group refcount %d!!! (pointer %p)\n",
-					atomic_read(&group->refcount), group);
-
+					refcount_read(&group->refcount), group);
 		force_clean_group(group);
 	}
 	mutex_unlock(&ctx->mcg_table_lock);
@@ -1183,7 +1183,7 @@ static void clear_pending_reqs(struct mcast_group *group, int vf)
 			list_del(&req->group_list);
 			list_del(&req->func_list);
 			kfree(req);
-			atomic_dec(&group->refcount);
+			refcount_dec(&group->refcount);
 		}
 	}
 
@@ -1231,7 +1231,7 @@ void clean_vf_mcast(struct mlx4_ib_demux_ctx *ctx, int slave)
 	for (p = rb_first(&ctx->mcg_table); p; p = rb_next(p)) {
 		group = rb_entry(p, struct mcast_group, node);
 		mutex_lock(&group->lock);
-		if (atomic_read(&group->refcount)) {
+		if (refcount_read(&group->refcount)) {
 			/* clear pending requests of this VF */
 			clear_pending_reqs(group, slave);
 			push_deleteing_req(group, slave);
