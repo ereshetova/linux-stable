@@ -159,7 +159,7 @@ static int hns_roce_cq_alloc(struct hns_roce_dev *hr_dev, int nent,
 	hr_cq->arm_sn = 1;
 	hr_cq->uar = hr_uar;
 
-	atomic_set(&hr_cq->refcount, 1);
+	refcount_set(&hr_cq->refcount, 1);
 	init_completion(&hr_cq->free);
 
 	return 0;
@@ -201,7 +201,7 @@ void hns_roce_free_cq(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq)
 		synchronize_irq(hr_dev->eq_table.eq[hr_cq->vector].irq);
 
 		/* wait for all interrupt processed */
-		if (atomic_dec_and_test(&hr_cq->refcount))
+		if (refcount_dec_and_test(&hr_cq->refcount))
 			complete(&hr_cq->free);
 		wait_for_completion(&hr_cq->free);
 	}
@@ -470,7 +470,7 @@ void hns_roce_cq_event(struct hns_roce_dev *hr_dev, u32 cqn, int event_type)
 	cq = radix_tree_lookup(&cq_table->tree,
 			       cqn & (hr_dev->caps.num_cqs - 1));
 	if (cq)
-		atomic_inc(&cq->refcount);
+		refcount_inc(&cq->refcount);
 
 	if (!cq) {
 		dev_warn(dev, "Async event for bogus CQ %08x\n", cqn);
@@ -479,7 +479,7 @@ void hns_roce_cq_event(struct hns_roce_dev *hr_dev, u32 cqn, int event_type)
 
 	cq->event(cq, (enum hns_roce_event)event_type);
 
-	if (atomic_dec_and_test(&cq->refcount))
+	if (refcount_dec_and_test(&cq->refcount))
 		complete(&cq->free);
 }
 

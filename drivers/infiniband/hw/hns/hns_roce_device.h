@@ -33,6 +33,7 @@
 #ifndef _HNS_ROCE_DEVICE_H
 #define _HNS_ROCE_DEVICE_H
 
+#include <linux/refcount.h>
 #include <rdma/ib_verbs.h>
 
 #define DRV_NAME "hns_roce"
@@ -350,7 +351,7 @@ struct hns_roce_cq {
 	int				arm_sn;
 	unsigned long			cqn;
 	u32				vector;
-	atomic_t			refcount;
+	refcount_t			refcount;
 	struct completion		free;
 };
 
