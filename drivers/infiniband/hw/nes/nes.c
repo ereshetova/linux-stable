@@ -261,8 +261,8 @@ void nes_add_ref(struct ib_qp *ibqp)
 
 	nesqp = to_nesqp(ibqp);
 	nes_debug(NES_DBG_QP, "Bumping refcount for QP%u.  Pre-inc value = %u\n",
-			ibqp->qp_num, atomic_read(&nesqp->refcount));
-	atomic_inc(&nesqp->refcount);
+			ibqp->qp_num, refcount_read(&nesqp->refcount));
+	refcount_inc(&nesqp->refcount);
 }
 
 static void nes_cqp_rem_ref_callback(struct nes_device *nesdev, struct nes_cqp_request *cqp_request)
@@ -310,13 +310,13 @@ void nes_rem_ref(struct ib_qp *ibqp)
 
 	nesqp = to_nesqp(ibqp);
 
-	if (atomic_read(&nesqp->refcount) == 0) {
+	if (refcount_read(&nesqp->refcount) == 0) {
 		printk(KERN_INFO PFX "%s: Reference count already 0 for QP%d, last aeq = 0x%04X.\n",
 				__func__, ibqp->qp_num, nesqp->last_aeq);
 		BUG();
 	}
 
-	if (atomic_dec_and_test(&nesqp->refcount)) {
+	if (refcount_dec_and_test(&nesqp->refcount)) {
 		if (nesqp->pau_mode)
 			nes_destroy_pau_qp(nesdev, nesqp);
 

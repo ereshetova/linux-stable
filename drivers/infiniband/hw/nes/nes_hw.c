@@ -3559,7 +3559,7 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 				nes_debug(NES_DBG_AEQ, "QP%u Not decrementing QP refcount (%d),"
 						" need ae to finish up, original_last_aeq = 0x%04X."
 						" last_aeq = 0x%04X, scheduling timer. TCP state = %d\n",
-						nesqp->hwqp.qp_id, atomic_read(&nesqp->refcount),
+						nesqp->hwqp.qp_id, refcount_read(&nesqp->refcount),
 						async_event_id, nesqp->last_aeq, tcp_state);
 			}
 			break;

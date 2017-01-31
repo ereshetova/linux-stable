@@ -156,7 +156,7 @@ struct nes_qp {
 	u32                   hte_index;
 	u32                   last_aeq;
 	u32                   qp_mem_size;
-	atomic_t              refcount;
+	refcount_t              refcount;
 	atomic_t              close_timer_started;
 	u32                   mmap_sq_db_index;
 	u32                   mmap_rq_db_index;

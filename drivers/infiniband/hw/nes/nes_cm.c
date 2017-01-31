@@ -813,7 +813,7 @@ static void handle_recv_entry(struct nes_cm_node *cm_node, u32 rem_node)
 				  "refcount = %d: HIT A "
 				  "NES_TIMER_TYPE_CLOSE with something "
 				  "to do!!!\n", nesqp->hwqp.qp_id, cm_id,
-				  atomic_read(&nesqp->refcount));
+				  refcount_read(&nesqp->refcount));
 			nesqp->hw_tcp_state = NES_AEQE_TCP_STATE_CLOSED;
 			nesqp->last_aeq = NES_AEQE_AEID_RESET_SENT;
 			nesqp->ibqp_state = IB_QPS_ERR;
@@ -825,7 +825,7 @@ static void handle_recv_entry(struct nes_cm_node *cm_node, u32 rem_node)
 				  "refcount = %d: HIT A "
 				  "NES_TIMER_TYPE_CLOSE with nothing "
 				  "to do!!!\n", nesqp->hwqp.qp_id, cm_id,
-				  atomic_read(&nesqp->refcount));
+				  refcount_read(&nesqp->refcount));
 		}
 	} else if (rem_node) {
 		/* TIME_WAIT state */
@@ -2969,7 +2969,7 @@ static int nes_cm_disconn_true(struct nes_qp *nesqp)
 				  "cm_id = %p, refcount = %u.\n",
 				  nesqp->hwqp.qp_id, nesqp->hwqp.sq_head,
 				  nesqp->hwqp.sq_tail, cm_id,
-				  atomic_read(&nesqp->refcount));
+				  refcount_read(&nesqp->refcount));
 
 			ret = cm_id->event_handler(cm_id, &cm_event);
 			if (ret)
