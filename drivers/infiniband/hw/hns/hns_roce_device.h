@@ -468,7 +468,7 @@ struct hns_roce_qp {
 					 enum hns_roce_event);
 	unsigned long		qpn;
 
-	atomic_t		refcount;
+	refcount_t		refcount;
 	struct completion	free;
 
 	struct hns_roce_sge	sge;

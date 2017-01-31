@@ -51,7 +51,7 @@ void hns_roce_qp_event(struct hns_roce_dev *hr_dev, u32 qpn, int event_type)
 
 	qp = __hns_roce_qp_lookup(hr_dev, qpn);
 	if (qp)
-		atomic_inc(&qp->refcount);
+		refcount_inc(&qp->refcount);
 
 	spin_unlock(&qp_table->lock);
 
@@ -62,7 +62,7 @@ void hns_roce_qp_event(struct hns_roce_dev *hr_dev, u32 qpn, int event_type)
 
 	qp->event(qp, (enum hns_roce_event)event_type);
 
-	if (atomic_dec_and_test(&qp->refcount))
+	if (refcount_dec_and_test(&qp->refcount))
 		complete(&qp->free);
 }
 
@@ -158,7 +158,7 @@ static int hns_roce_gsi_qp_alloc(struct hns_roce_dev *hr_dev, unsigned long qpn,
 		goto err_put_irrl;
 	}
 
-	atomic_set(&hr_qp->refcount, 1);
+	refcount_set(&hr_qp->refcount, 1);
 	init_completion(&hr_qp->free);
 
 	return 0;
@@ -213,7 +213,7 @@ static int hns_roce_qp_alloc(struct hns_roce_dev *hr_dev, unsigned long qpn,
 		goto err_put_trrl;
 	}
 
-	atomic_set(&hr_qp->refcount, 1);
+	refcount_set(&hr_qp->refcount, 1);
 	init_completion(&hr_qp->free);
 
 	return 0;
@@ -248,7 +248,7 @@ void hns_roce_qp_free(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 {
 	struct hns_roce_qp_table *qp_table = &hr_dev->qp_table;
 
-	if (atomic_dec_and_test(&hr_qp->refcount))
+	if (refcount_dec_and_test(&hr_qp->refcount))
 		complete(&hr_qp->free);
 	wait_for_completion(&hr_qp->free);
 
