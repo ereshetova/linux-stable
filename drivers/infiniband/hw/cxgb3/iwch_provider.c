@@ -135,8 +135,8 @@ static int iwch_destroy_cq(struct ib_cq *ib_cq)
 	chp = to_iwch_cq(ib_cq);
 
 	remove_handle(chp->rhp, &chp->rhp->cqidr, chp->cq.cqid);
-	atomic_dec(&chp->refcnt);
-	wait_event(chp->wait, !atomic_read(&chp->refcnt));
+	refcount_dec(&chp->refcnt);
+	wait_event(chp->wait, !refcount_read(&chp->refcnt));
 
 	cxio_destroy_cq(&chp->rhp->rdev, &chp->cq);
 	kfree(chp);
@@ -201,7 +201,7 @@ static struct ib_cq *iwch_create_cq(struct ib_device *ibdev,
 	chp->ibcq.cqe = 1 << chp->cq.size_log2;
 	spin_lock_init(&chp->lock);
 	spin_lock_init(&chp->comp_handler_lock);
-	atomic_set(&chp->refcnt, 1);
+	refcount_set(&chp->refcnt, 1);
 	init_waitqueue_head(&chp->wait);
 	if (insert_handle(rhp, &rhp->cqidr, chp, chp->cq.cqid)) {
 		cxio_destroy_cq(&chp->rhp->rdev, &chp->cq);

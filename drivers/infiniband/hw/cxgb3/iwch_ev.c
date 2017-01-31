@@ -127,7 +127,7 @@ void iwch_ev_dispatch(struct cxio_rdev *rdev_p, struct sk_buff *skb)
 		goto out;
 	}
 	iwch_qp_add_ref(&qhp->ibqp);
-	atomic_inc(&chp->refcnt);
+	refcount_inc(&chp->refcnt);
 	spin_unlock(&rnicp->lock);
 
 	/*
@@ -224,7 +224,7 @@ void iwch_ev_dispatch(struct cxio_rdev *rdev_p, struct sk_buff *skb)
 		break;
 	}
 done:
-	if (atomic_dec_and_test(&chp->refcnt))
+	if (refcount_dec_and_test(&chp->refcnt))
 	        wake_up(&chp->wait);
 	iwch_qp_rem_ref(&qhp->ibqp);
 out:
