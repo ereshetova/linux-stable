@@ -2016,7 +2016,7 @@ static int uvc_probe(struct usb_interface *intf,
 	INIT_LIST_HEAD(&dev->chains);
 	INIT_LIST_HEAD(&dev->streams);
 	atomic_set(&dev->nstreams, 0);
-	atomic_set(&dev->nmappings, 0);
+	refcount_set(&dev->nmappings, 0);
 	mutex_init(&dev->lock);
 
 	dev->udev = usb_get_dev(udev);

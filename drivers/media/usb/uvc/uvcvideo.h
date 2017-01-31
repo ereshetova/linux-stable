@@ -7,6 +7,7 @@
 
 #include <linux/kernel.h>
 #include <linux/poll.h>
+#include <linux/refcount.h>
 #include <linux/usb.h>
 #include <linux/usb/video.h>
 #include <linux/uvcvideo.h>
@@ -551,7 +552,7 @@ struct uvc_device {
 
 	struct mutex lock;		/* Protects users */
 	unsigned int users;
-	atomic_t nmappings;
+	refcount_t nmappings;
 
 	/* Video control interface */
 #ifdef CONFIG_MEDIA_CONTROLLER
