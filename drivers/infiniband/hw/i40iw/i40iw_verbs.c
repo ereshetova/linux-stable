@@ -254,7 +254,7 @@ static void i40iw_alloc_push_page(struct i40iw_device *iwdev, struct i40iw_sc_qp
 	if (!cqp_request)
 		return;
 
-	atomic_inc(&cqp_request->refcount);
+	refcount_inc(&cqp_request->refcount);
 
 	cqp_info = &cqp_request->info;
 	cqp_info->cqp_cmd = OP_MANAGE_PUSH_PAGE;
