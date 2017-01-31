@@ -320,7 +320,7 @@ struct nes_cm_node {
 	struct nes_cm_tcp_context tcp_cntxt;
 	struct nes_cm_core        *cm_core;
 	struct sk_buff_head       resend_list;
-	atomic_t                  ref_count;
+	refcount_t                  ref_count;
 	struct net_device         *netdev;
 
 	struct nes_cm_node        *loopbackpartner;

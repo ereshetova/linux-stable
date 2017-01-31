@@ -1489,7 +1489,7 @@ static struct nes_cm_node *make_cm_node(struct nes_cm_core *cm_core,
 	spin_lock_init(&cm_node->retrans_list_lock);
 
 	cm_node->loopbackpartner = NULL;
-	atomic_set(&cm_node->ref_count, 1);
+	refcount_set(&cm_node->ref_count, 1);
 	/* associate our parent CM core */
 	cm_node->cm_core = cm_core;
 	cm_node->tcp_cntxt.loc_id = NES_CM_DEF_LOCAL_ID;
@@ -1541,7 +1541,7 @@ static struct nes_cm_node *make_cm_node(struct nes_cm_core *cm_core,
  */
 static int add_ref_cm_node(struct nes_cm_node *cm_node)
 {
-	atomic_inc(&cm_node->ref_count);
+	refcount_inc(&cm_node->ref_count);
 	return 0;
 }
 
@@ -1559,7 +1559,7 @@ static int rem_ref_cm_node(struct nes_cm_core *cm_core,
 		return -EINVAL;
 
 	spin_lock_irqsave(&cm_node->cm_core->ht_lock, flags);
-	if (atomic_dec_return(&cm_node->ref_count)) {
+	if (!refcount_dec_and_test(&cm_node->ref_count)) {
 		spin_unlock_irqrestore(&cm_node->cm_core->ht_lock, flags);
 		return 0;
 	}
@@ -1661,7 +1661,7 @@ static void handle_fin_pkt(struct nes_cm_node *cm_node)
 {
 	nes_debug(NES_DBG_CM, "Received FIN, cm_node = %p, state = %u. "
 		  "refcnt=%d\n", cm_node, cm_node->state,
-		  atomic_read(&cm_node->ref_count));
+		  refcount_read(&cm_node->ref_count));
 	switch (cm_node->state) {
 	case NES_CM_STATE_SYN_RCVD:
 	case NES_CM_STATE_SYN_SENT:
@@ -1719,7 +1719,7 @@ static void handle_rst_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
 	atomic_inc(&cm_resets_recvd);
 	nes_debug(NES_DBG_CM, "Received Reset, cm_node = %p, state = %u."
 			" refcnt=%d\n", cm_node, cm_node->state,
-			atomic_read(&cm_node->ref_count));
+			refcount_read(&cm_node->ref_count));
 	cleanup_retrans_entry(cm_node);
 	switch (cm_node->state) {
 	case NES_CM_STATE_SYN_SENT:
