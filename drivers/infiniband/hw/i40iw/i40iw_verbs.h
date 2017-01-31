@@ -35,6 +35,8 @@
 #ifndef I40IW_VERBS_H
 #define I40IW_VERBS_H
 
+#include <linux/refcount.h>
+
 struct i40iw_ucontext {
 	struct ib_ucontext ibucontext;
 	struct i40iw_device *iwdev;
@@ -140,7 +142,7 @@ struct i40iw_qp {
 	struct i40iw_qp_host_ctx_info ctx_info;
 	struct i40iwarp_offload_info iwarp_info;
 	void *allocated_buffer;
-	atomic_t refcount;
+	refcount_t refcount;
 	struct iw_cm_id *cm_id;
 	void *cm_node;
 	struct ib_mr *lsmm_mr;

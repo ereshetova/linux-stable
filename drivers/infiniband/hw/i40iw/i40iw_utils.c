@@ -568,7 +568,7 @@ void i40iw_add_ref(struct ib_qp *ibqp)
 {
 	struct i40iw_qp *iwqp = (struct i40iw_qp *)ibqp;
 
-	atomic_inc(&iwqp->refcount);
+	refcount_inc(&iwqp->refcount);
 }
 
 /**
@@ -588,7 +588,7 @@ void i40iw_rem_ref(struct ib_qp *ibqp)
 	iwqp = to_iwqp(ibqp);
 	iwdev = iwqp->iwdev;
 	spin_lock_irqsave(&iwdev->qptable_lock, flags);
-	if (!atomic_dec_and_test(&iwqp->refcount)) {
+	if (!refcount_dec_and_test(&iwqp->refcount)) {
 		spin_unlock_irqrestore(&iwdev->qptable_lock, flags);
 		return;
 	}
