@@ -9478,7 +9478,7 @@ static struct niu_parent *niu_new_parent(struct niu *np,
 	memcpy(&p->id, id, sizeof(*id));
 	p->plat_type = ptype;
 	INIT_LIST_HEAD(&p->list);
-	atomic_set(&p->refcnt, 0);
+	refcount_set(&p->refcnt, 0);
 	list_add(&p->list, &niu_parent_list);
 	spin_lock_init(&p->lock);
 
@@ -9538,7 +9538,7 @@ static struct niu_parent *niu_get_parent(struct niu *np,
 					port_name);
 		if (!err) {
 			p->ports[port] = np;
-			atomic_inc(&p->refcnt);
+			refcount_inc(&p->refcnt);
 		}
 	}
 	mutex_unlock(&niu_parent_lock);
@@ -9566,7 +9566,7 @@ static void niu_put_parent(struct niu *np)
 	p->ports[port] = NULL;
 	np->parent = NULL;
 
-	if (atomic_dec_and_test(&p->refcnt)) {
+	if (refcount_dec_and_test(&p->refcnt)) {
 		list_del(&p->list);
 		platform_device_unregister(p->plat_dev);
 	}

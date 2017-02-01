@@ -6,6 +6,8 @@
 #ifndef _NIU_H
 #define _NIU_H
 
+#include <linux/refcount.h>
+
 #define PIO			0x000000UL
 #define FZC_PIO			0x080000UL
 #define FZC_MAC			0x180000UL
@@ -3070,7 +3072,7 @@ struct niu_parent {
 
 	struct niu		*ports[NIU_MAX_PORTS];
 
-	atomic_t		refcnt;
+	refcount_t		refcnt;
 	struct list_head	list;
 
 	spinlock_t		lock;
