@@ -2795,7 +2795,8 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 	cr_ses->flags &= ~SESSION4_RDMA;
 
 	init_session(rqstp, new, conf, cr_ses);
-	nfsd4_get_session_locked(new);
+	refcount_set(&new->se_client->cl_refcount, 1);
+	refcount_set(&new->se_ref, 1);
 
 	memcpy(cr_ses->sessionid.data, new->se_sessionid.data,
 	       NFS4_MAX_SESSIONID_LEN);
