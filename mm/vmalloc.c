@@ -326,6 +326,9 @@ EXPORT_SYMBOL(vmalloc_to_pfn);
 #define VM_LAZY_FREE	0x02
 #define VM_VM_AREA	0x04
 
+#define VMAP_MAY_PURGE 0x2
+#define VMAP_NO_PURGE  0x1
+
 static DEFINE_SPINLOCK(vmap_area_lock);
 /* Export for kexec only */
 LIST_HEAD(vmap_area_list);
@@ -402,12 +405,12 @@ static BLOCKING_NOTIFIER_HEAD(vmap_notify_list);
 static struct vmap_area *alloc_vmap_area(unsigned long size,
 				unsigned long align,
 				unsigned long vstart, unsigned long vend,
-				int node, gfp_t gfp_mask)
+                int node, gfp_t gfp_mask, int try_purge)
 {
 	struct vmap_area *va;
 	struct rb_node *n;
 	unsigned long addr;
-	int purged = 0;
+    int purged = try_purge & VMAP_NO_PURGE;
 	struct vmap_area *first;
 
 	BUG_ON(!size);
@@ -860,7 +863,7 @@ static void *new_vmap_block(unsigned int order, gfp_t gfp_mask)
 
 	va = alloc_vmap_area(VMAP_BLOCK_SIZE, VMAP_BLOCK_SIZE,
 					VMALLOC_START, VMALLOC_END,
-					node, gfp_mask);
+                    node, gfp_mask, VMAP_MAY_PURGE);
 	if (IS_ERR(va)) {
 		kfree(vb);
 		return ERR_CAST(va);
@@ -1170,8 +1173,9 @@ void *vm_map_ram(struct page **pages, unsigned int count, int node, pgprot_t pro
 		addr = (unsigned long)mem;
 	} else {
 		struct vmap_area *va;
-		va = alloc_vmap_area(size, PAGE_SIZE,
-				VMALLOC_START, VMALLOC_END, node, GFP_KERNEL);
+        va = alloc_vmap_area(size, PAGE_SIZE, VMALLOC_START,
+                VMALLOC_END, node, GFP_KERNEL,
+                VMAP_MAY_PURGE);
 		if (IS_ERR(va))
 			return NULL;
 
@@ -1372,7 +1376,8 @@ static void clear_vm_uninitialized_flag(struct vm_struct *vm)
 
 static struct vm_struct *__get_vm_area_node(unsigned long size,
 		unsigned long align, unsigned long flags, unsigned long start,
-		unsigned long end, int node, gfp_t gfp_mask, const void *caller)
+               unsigned long end, int node, gfp_t gfp_mask, int try_purge,
+               const void *caller)
 {
 	struct vmap_area *va;
 	struct vm_struct *area;
@@ -1386,16 +1391,17 @@ static struct vm_struct *__get_vm_area_node(unsigned long size,
 		align = 1ul << clamp_t(int, get_count_order_long(size),
 				       PAGE_SHIFT, IOREMAP_MAX_ORDER);
 
-	area = kzalloc_node(sizeof(*area), gfp_mask & GFP_RECLAIM_MASK, node);
-	if (unlikely(!area))
-		return NULL;
-
 	if (!(flags & VM_NO_GUARD))
 		size += PAGE_SIZE;
 
-	va = alloc_vmap_area(size, align, start, end, node, gfp_mask);
-	if (IS_ERR(va)) {
-		kfree(area);
+       va = alloc_vmap_area(size, align, start, end, node, gfp_mask,
+                               try_purge);
+       if (IS_ERR(va))
+               return NULL;
+
+       area = kzalloc_node(sizeof(*area), gfp_mask & GFP_RECLAIM_MASK, node);
+       if (unlikely(!area)) {
+               free_vmap_area(va);
 		return NULL;
 	}
 
@@ -1408,7 +1414,8 @@ struct vm_struct *__get_vm_area(unsigned long size, unsigned long flags,
 				unsigned long start, unsigned long end)
 {
 	return __get_vm_area_node(size, 1, flags, start, end, NUMA_NO_NODE,
-				  GFP_KERNEL, __builtin_return_address(0));
+                GFP_KERNEL, VMAP_MAY_PURGE,
+                __builtin_return_address(0));
 }
 EXPORT_SYMBOL_GPL(__get_vm_area);
 
@@ -1417,7 +1424,7 @@ struct vm_struct *__get_vm_area_caller(unsigned long size, unsigned long flags,
 				       const void *caller)
 {
 	return __get_vm_area_node(size, 1, flags, start, end, NUMA_NO_NODE,
-				  GFP_KERNEL, caller);
+                            GFP_KERNEL, VMAP_MAY_PURGE, caller);
 }
 
 /**
@@ -1432,7 +1439,7 @@ struct vm_struct *__get_vm_area_caller(unsigned long size, unsigned long flags,
 struct vm_struct *get_vm_area(unsigned long size, unsigned long flags)
 {
 	return __get_vm_area_node(size, 1, flags, VMALLOC_START, VMALLOC_END,
-				  NUMA_NO_NODE, GFP_KERNEL,
+                NUMA_NO_NODE, GFP_KERNEL, VMAP_MAY_PURGE,
 				  __builtin_return_address(0));
 }
 
@@ -1440,7 +1447,8 @@ struct vm_struct *get_vm_area_caller(unsigned long size, unsigned long flags,
 				const void *caller)
 {
 	return __get_vm_area_node(size, 1, flags, VMALLOC_START, VMALLOC_END,
-				  NUMA_NO_NODE, GFP_KERNEL, caller);
+                                NUMA_NO_NODE, GFP_KERNEL, VMAP_MAY_PURGE,
+                                caller);
 }
 
 /**
@@ -1709,26 +1717,10 @@ fail:
 	return NULL;
 }
 
-/**
- *	__vmalloc_node_range  -  allocate virtually contiguous memory
- *	@size:		allocation size
- *	@align:		desired alignment
- *	@start:		vm area range start
- *	@end:		vm area range end
- *	@gfp_mask:	flags for the page level allocator
- *	@prot:		protection mask for the allocated pages
- *	@vm_flags:	additional vm area flags (e.g. %VM_NO_GUARD)
- *	@node:		node to use for allocation or NUMA_NO_NODE
- *	@caller:	caller's return address
- *
- *	Allocate enough pages to cover @size from the page level
- *	allocator with @gfp_mask flags.  Map them into contiguous
- *	kernel virtual space, using a pagetable protection of @prot.
- */
-void *__vmalloc_node_range(unsigned long size, unsigned long align,
-			unsigned long start, unsigned long end, gfp_t gfp_mask,
-			pgprot_t prot, unsigned long vm_flags, int node,
-			const void *caller)
+static void *__vmalloc_node_range_opts(unsigned long size, unsigned long align,
+                        unsigned long start, unsigned long end, gfp_t gfp_mask,
+                        pgprot_t prot, unsigned long vm_flags, int node,
+                        int try_purge, const void *caller)
 {
 	struct vm_struct *area;
 	void *addr;
@@ -1739,7 +1731,8 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
 		goto fail;
 
 	area = __get_vm_area_node(size, align, VM_ALLOC | VM_UNINITIALIZED |
-				vm_flags, start, end, node, gfp_mask, caller);
+                               vm_flags, start, end, node, gfp_mask,
+                               try_purge, caller);
 	if (!area)
 		goto fail;
 
@@ -1762,6 +1755,69 @@ fail:
 	warn_alloc(gfp_mask, NULL,
 			  "vmalloc: allocation failure: %lu bytes", real_size);
 	return NULL;
+}
+
+/**
+ *     __vmalloc_node_range  -  allocate virtually contiguous memory
+ *     @size:          allocation size
+ *     @align:         desired alignment
+ *     @start:         vm area range start
+ *     @end:           vm area range end
+ *     @gfp_mask:      flags for the page level allocator
+ *     @prot:          protection mask for the allocated pages
+ *     @vm_flags:      additional vm area flags (e.g. %VM_NO_GUARD)
+ *     @node:          node to use for allocation or NUMA_NO_NODE
+ *     @caller:        caller's return address
+ *
+ *     Allocate enough pages to cover @size from the page level
+ *     allocator with @gfp_mask flags.  Map them into contiguous
+ *     kernel virtual space, using a pagetable protection of @prot.
+ */
+void *__vmalloc_node_range(unsigned long size, unsigned long align,
+                       unsigned long start, unsigned long end, gfp_t gfp_mask,
+                       pgprot_t prot, unsigned long vm_flags, int node,
+                       const void *caller)
+{
+       return __vmalloc_node_range_opts(size, align, start, end, gfp_mask,
+                                       prot, vm_flags, node, VMAP_MAY_PURGE,
+                                       caller);
+}
+
+/**
+ *     __vmalloc_try_addr  -  try to alloc at a specific address
+ *     @addr:          address to try
+ *     @size:          size to try
+ *     @gfp_mask:      flags for the page level allocator
+ *     @prot:          protection mask for the allocated pages
+ *     @vm_flags:      additional vm area flags (e.g. %VM_NO_GUARD)
+ *     @node:          node to use for allocation or NUMA_NO_NODE
+ *     @caller:        caller's return address
+ *
+ *     Try to allocate at the specific address. If it succeeds the address is
+ *     returned. If it fails NULL is returned.  It will not try to purge lazy
+ *     free vmap areas in order to fit.
+ */
+void *__vmalloc_node_try_addr(unsigned long addr, unsigned long size,
+                       gfp_t gfp_mask, pgprot_t prot, unsigned long vm_flags,
+                       int node, const void *caller)
+{
+       unsigned long addr_end;
+       unsigned long vsize = PAGE_ALIGN(size);
+
+       if (!vsize || (vsize >> PAGE_SHIFT) > totalram_pages)
+               return NULL;
+
+       if (!(vm_flags & VM_NO_GUARD))
+               vsize += PAGE_SIZE;
+
+       addr_end = addr + vsize;
+
+       if (addr > addr_end)
+               return NULL;
+
+       return __vmalloc_node_range_opts(size, 1, addr, addr_end,
+                               gfp_mask | __GFP_NOWARN, prot, vm_flags, node,
+                               VMAP_NO_PURGE, caller);
 }
 
 /**
