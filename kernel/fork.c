@@ -98,6 +98,7 @@
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
+#include <asm/kaslr.h>
 
 #include <trace/events/sched.h>
 
@@ -202,10 +203,51 @@ static int free_vm_stack_cache(unsigned int cpu)
 }
 #endif
 
+#ifdef CONFIG_RANDOMIZE_STACK
+
+static inline int kaslr_randomize_stack(void)
+{
+	return IS_ENABLED(CONFIG_RANDOMIZE_STACK)
+		&& IS_ENABLED(CONFIG_X86_64)
+		&& kaslr_enabled();
+}
+
+static const unsigned long NO_TRY_RAND = 5000;
+
+static void *alloc_random_thread_stack_node(int node)
+{
+	void *p = NULL;
+	unsigned int i;
+
+	unsigned long vmalloc_size = VMALLOC_END - VMALLOC_START;
+
+	for (i = 0; i < NO_TRY_RAND; i++) {
+		unsigned long rand = get_random_long();
+		unsigned long addr = VMALLOC_START + (rand % vmalloc_size);
+		addr = ALIGN(addr, THREAD_ALIGN);
+		p = __vmalloc_node_try_addr(addr, THREAD_SIZE, THREADINFO_GFP, PAGE_KERNEL,
+									0, node, __builtin_return_address(0));
+		if (p)
+			return p;
+	}
+
+	return NULL;
+}
+#else
+static inline int kaslr_randomize_stack(void)
+{
+	return 0;
+}
+static inline void *alloc_random_thread_stack_node(int node)
+{
+	return 0;
+}
+#endif /* CONFIG_RANDOMIZE_STACK */
+
 static unsigned long *alloc_thread_stack_node(struct task_struct *tsk, int node)
 {
 #ifdef CONFIG_VMAP_STACK
-	void *stack;
+	void *stack = NULL;
 	int i;
 
 	for (i = 0; i < NR_CACHED_STACKS; i++) {
@@ -223,7 +265,11 @@ static unsigned long *alloc_thread_stack_node(struct task_struct *tsk, int node)
 		return s->addr;
 	}
 
-	stack = __vmalloc_node_range(THREAD_SIZE, THREAD_ALIGN,
+	if (kaslr_randomize_stack())
+	    stack = alloc_random_thread_stack_node(node);
+
+	if (!stack)
+		stack = __vmalloc_node_range(THREAD_SIZE, THREAD_ALIGN,
 				     VMALLOC_START, VMALLOC_END,
 				     THREADINFO_GFP,
 				     PAGE_KERNEL,
