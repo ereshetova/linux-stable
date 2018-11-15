@@ -220,15 +220,33 @@ static void *alloc_random_thread_stack_node(int node)
 	unsigned int i;
 
 	unsigned long vmalloc_size = VMALLOC_END - VMALLOC_START;
+	struct vm_struct *vm;
+
+	pr_info("vmalloc_size:%016lx\n", vmalloc_size);
+	pr_info("VMALLOC_START:%016lx\n", VMALLOC_START);
+	pr_info("VMALLOC_END:%016lx\n", VMALLOC_END);
 
 	for (i = 0; i < NO_TRY_RAND; i++) {
 		unsigned long rand = get_random_long();
+		pr_info("Generated this rand:%016lx\n", rand);
 		unsigned long addr = VMALLOC_START + (rand % vmalloc_size);
+		pr_info("Generated this address:%016lx\n", addr);
 		addr = ALIGN(addr, THREAD_ALIGN);
+		pr_info("addr aligned:%016lx\n", addr);
 		p = __vmalloc_node_try_addr(addr, THREAD_SIZE, THREADINFO_GFP, PAGE_KERNEL,
 									0, node, __builtin_return_address(0));
-		if (p)
+		if (p) {
+			pr_info("the following pointer is returned:%016lx\n", p);
+			pr_info("i is:%lu\n", i);
+			vm = find_vm_area(p);
+			if (vm) {
+				pr_info("vm->addr:%016lx\n", vm->addr);
+				pr_info("vm->size:%016lx\n", vm->size);
+				pr_info("vm->flags:%016lx\n", vm->flags);
+				pr_info("vm->nr_pages:%u\n", vm->nr_pages);
+			}
 			return p;
+		}
 	}
 
 	return NULL;
